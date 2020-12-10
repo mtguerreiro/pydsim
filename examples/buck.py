@@ -10,7 +10,7 @@ L = 15e-6
 C = 10e-6
 
 # Input and reference voltage
-V = 12
+v_in = 12
 V_ref = 6
 
 # Sim time
@@ -20,12 +20,25 @@ t_sim = 10e-3
 t_pwm = 1/200e3
 
 # Number of points per cycle
-N_pc = 100
+n_pwm = 200
 
-buck = pyd.pe.Buck(R, L, C, V, V_ref, t_pwm, N_pc, t_sim)
-buck.sim()
+buck = pyd.pe.Buck(R, L, C)
+buck.set_pwm(t_pwm, n_pwm)
+buck.set_sim_time(t_sim)
+buck.set_v_in(v_in)
+
+buck.sim(v_ref=6)
+t = buck.t
+x1 = buck.x
 
 
+buck.sim(v_ref=9)
+x2 = buck.x
+
+
+plt.plot(t, x1[:, 1])
+
+plt.plot(t, x2[:, 1])
 
 ###vc, il, u, u_pwm = pyd.pe.buck(R, L, C, V, V_ref, t_pwm, N_pc, t_sim)
 ##o, u = pyd.pe.buck(R, L, C, V, V_ref, t_pwm, N_pc, t_sim)
