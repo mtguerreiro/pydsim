@@ -1,5 +1,4 @@
 import time
-import scipy.signal
 import numpy as np
 
 import pydsim.utils as pydutils
@@ -50,6 +49,7 @@ class Buck:
         self.n_cycles = round(self.t_sim / self.t_pwm)
         self.t = self.dt * np.arange(self.n)
         self.set_vectors()
+        print('Sim points: {:}'.format(self.n))
 
     
     def set_model(self, R, L, C):
@@ -81,27 +81,33 @@ class Buck:
         self.e = np.zeros((self.n, 1))
 
     
-    def sim(self, v_ref):
+    def sim(self, v_ref, v_in=None):
 
         # Loads useful variables
         n = self.n
         n_pwm = self.n_pwm
         n_cycles = self.n_cycles
 
+        if type(v_ref) is int or type(v_ref) is float:
+            v_ref = v_ref * np.ones(n_cycles)
+
+        if v_in is None:
+            v_in = self.v_in * np.ones(n_cycles)
+        
         # Control
-        pi = pydctl.PI(0.3, 50000, self.dt)
+        pi = pydctl.PI(0.0025, 500, n_pwm * self.dt)
 
         # Vectors
         x = np.zeros((n + 1, 2))
         
         # Triangle reference for PWM
-        u_t = np.arange(0, self.v_in, self.v_in / n_pwm)
+        u_t = np.arange(0, 1, 1 / n_pwm)
 
         # Control signal applied within switching period
         u_s = np.zeros((n_pwm, 1))
 
         # Reference signal
-        v_ref_a = v_ref * np.ones((n_cycles, 1))
+        #v_ref_a = v_ref * np.ones((n_cycles, 1))
     
         ii = 0
         _ti = time.time()
@@ -109,21 +115,22 @@ class Buck:
         # Loops for each switching cycle
         for i in range(n_cycles):
 
+            #self.u[ii:(n_pwm*(ii+1))] = v_ref[i] / self.v_in
             # Computes control law
-            self.e[ii] = v_ref_a[i] - x[ii, 1]
+            e = v_ref[i] - x[ii, 1]
             
             #self.u[ii:(n_pwm*(ii+1))] = v_ref_a[i]
-            self.u[ii:(n_pwm*(ii+1))] = pi.control(self.e[ii])
+            self.u[ii:(n_pwm*(ii+1))] = pi.control(e)
 
-            u_t = np.arange(0, self.v_in, self.v_in / n_pwm)
+            #u_t = np.arange(0, self.v_in, self.v_in / n_pwm)
             u_s[:] = 0
-            u_s[u_t < self.u[ii], 0] = self.v_in
+            u_s[u_t < self.u[ii], 0] = v_in[i]
             
             # System's response for one switching cycle
             for j in range(n_pwm):
                 x[ii + 1] = self.Ad @ x[ii] + self.Bd @ u_s[j]
                 self.pwm[ii] = u_s[j]
-                self.e[ii] = v_ref_a[i] - x[ii, 1]
+                #self.e[ii] = v_ref_a[i] - x[ii, 1]
                 ii = ii + 1
 
         self.x = x[:-1, :]

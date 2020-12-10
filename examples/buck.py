@@ -20,25 +20,34 @@ t_sim = 10e-3
 t_pwm = 1/200e3
 
 # Number of points per cycle
-n_pwm = 200
+n_pwm = 1000
 
 buck = pyd.pe.Buck(R, L, C)
 buck.set_pwm(t_pwm, n_pwm)
 buck.set_sim_time(t_sim)
 buck.set_v_in(v_in)
 
-buck.sim(v_ref=6)
+n = buck.n_cycles
+v_ref = 6 * np.ones(n)
+#v_ref[:int(n/2)] = 6
+#v_ref[int(n/2):] = 9
+
+v_in = np.ones(n)
+v_in[:int(n/2)] = 12
+v_in[int(n/2):] = 9
+
+buck.sim(v_ref=v_ref, v_in=v_in)
 t = buck.t
 x1 = buck.x
 
 
-buck.sim(v_ref=9)
-x2 = buck.x
+##buck.sim(v_ref=9)
+##x2 = buck.x
 
 
 plt.plot(t, x1[:, 1])
 
-plt.plot(t, x2[:, 1])
+##plt.plot(t, x2[:, 1])
 
 ###vc, il, u, u_pwm = pyd.pe.buck(R, L, C, V, V_ref, t_pwm, N_pc, t_sim)
 ##o, u = pyd.pe.buck(R, L, C, V, V_ref, t_pwm, N_pc, t_sim)
