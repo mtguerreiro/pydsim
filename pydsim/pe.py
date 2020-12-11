@@ -1,8 +1,10 @@
 import time
 import numpy as np
+import numba
 
 import pydsim.utils as pydutils
 import pydsim.control as pydctl
+import pydsim.nbutils as pydnb
 
 class Buck:
 
@@ -50,6 +52,7 @@ class Buck:
         self.t = self.dt * np.arange(self.n)
         self.set_vectors()
         print('Sim points: {:}'.format(self.n))
+        print('Sim cycles: {:}'.format(self.n_cycles))
 
     
     def set_model(self, R, L, C):
@@ -95,7 +98,7 @@ class Buck:
             v_in = self.v_in * np.ones(n_cycles)
         
         # Control
-        pi = pydctl.PI(0.0025, 500, n_pwm * self.dt)
+        pi = pydctl.PI(0.05, 750, n_pwm * self.dt)
 
         # Vectors
         x = np.zeros((n + 1, 2))
@@ -115,23 +118,30 @@ class Buck:
         # Loops for each switching cycle
         for i in range(n_cycles):
 
+            i_s = ii
+            i_e = ii + n_pwm
+
             #self.u[ii:(n_pwm*(ii+1))] = v_ref[i] / self.v_in
             # Computes control law
             e = (v_ref[i] - x[ii, 1]) / v_in[i]
             
             #self.u[ii:(n_pwm*(ii+1))] = v_ref_a[i]
-            self.u[ii:(n_pwm*(ii+1))] = pi.control(e)
+            self.u[i_s:i_e] = pi.control(e)
 
             #u_t = np.arange(0, self.v_in, self.v_in / n_pwm)
             u_s[:] = 0
             u_s[u_t < self.u[ii], 0] = v_in[i]
+
+            # System's response for one switching cycle - with numba
+            pydnb.sim(x[i_s:i_e, :], self.Ad, self.Bd, u_s, n_pwm)
+            ii = ii + n_pwm
             
             # System's response for one switching cycle
-            for j in range(n_pwm):
-                x[ii + 1] = self.Ad @ x[ii] + self.Bd @ u_s[j]
-                self.pwm[ii] = u_s[j]
-                #self.e[ii] = v_ref_a[i] - x[ii, 1]
-                ii = ii + 1
+            #for j in range(n_pwm):
+            #    x[ii + 1] = self.Ad @ x[ii] + self.Bd @ u_s[j]
+            #    #self.e[ii] = v_ref_a[i] - x[ii, 1]
+            #    ii = ii + 1
+            self.pwm[i_s:i_e] = u_s
 
         self.x = x[:-1, :]
                 
