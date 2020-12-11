@@ -89,7 +89,7 @@ class Buck:
         self.x[0, 1] = vc
 
     
-    def sim(self, v_ref, v_in=None):
+    def sim(self, v_ref, v_in=None, control='ol'):
 
         # Loads useful variables
         n = self.n
@@ -107,10 +107,21 @@ class Buck:
         x[0] = self.x[0]
 
         # Control
-        pi = pydctl.PI(0.1, 1000, n_pwm * self.dt)
-        u_1 = v_ref[0] / v_in[0]
-        e_1 = v_ref[0] - x[0, 1]
-        pi.set_initial_conditions(u_1, e_1)
+        if control == 'pi':
+            ctlparams = {'ki': 1000, 'kp': 0.1, 'dt': n_pwm * self.dt}
+            ctlini = {'e_1': v_ref[0] - x[0, 1], 'u_1': v_ref[0] / v_in[0]}
+            ctl = pydctl.PI(ctlparams)
+        else:
+            ctlparams = {'dc': v_ref[0] / v_in[0]}
+            ctlini = {'dc': v_ref[0] / v_in[0]}
+            ctl = pydctl.OL(ctlparams)
+            
+        ctl.set_initial_conditions(ctlini)
+        
+        #pi = pydctl.PI(0.1, 1000, n_pwm * self.dt)
+        #u_1 = v_ref[0] / v_in[0]
+        #e_1 = v_ref[0] - x[0, 1]
+        #pi.set_initial_conditions(u_1, e_1)
         
         # Triangle reference for PWM
         u_t = np.arange(0, 1, 1 / n_pwm)
@@ -135,7 +146,7 @@ class Buck:
             e = (v_ref[i] - x[ii, 1]) / v_in[i]
             
             #self.u[ii:(n_pwm*(ii+1))] = v_ref_a[i]
-            self.u[i_s:i_e] = pi.control(e)
+            self.u[i_s:i_e] = ctl.control(e)
 
             #u_t = np.arange(0, self.v_in, self.v_in / n_pwm)
             u_s[:] = 0

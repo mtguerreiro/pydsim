@@ -3,25 +3,25 @@ import pydsim.utils as pydutils
 
 class PI:
 
-    def __init__(self, kp=None, ki=None, dt=None):
+    def __init__(self, pi_params):
 
-        self.kp = kp
-        self.ki = ki
-        self.dt = dt
+        self.kp = pi_params['kp']
+        self.ki = pi_params['ki']
+        self.dt = pi_params['dt']
         
         self.e_1 = 0
         self.u_1 = 0
 
 
-    def set_params(self, kp, ki, dt):
-        self.kp = kp
-        self.ki = ki
-        self.dt = dt
+    def set_params(self, pi_params):
+        self.kp = pi_params['kp']
+        self.ki = pi_params['ki']
+        self.dt = pi_params['dt']
 
 
-    def set_initial_conditions(self, u_1, e_1):
-        self.u_1 = u_1
-        self.e_1 = e_1
+    def set_initial_conditions(self, ini_conditions):
+        self.u_1 = ini_conditions['u_1']
+        self.e_1 = ini_conditions['e_1']
 
 
     def control(self, e):
@@ -32,3 +32,21 @@ class PI:
         self.u_1 = u
         
         return u
+
+class OL:
+
+    def __init__(self, ol_params):
+        self.dc = ol_params['dc']
+
+
+    def set_params(self, ol_params):
+        self.dc = ol_params['dc']
+
+
+    def set_initial_conditions(self, ini_conditions):
+        self.dc = ini_conditions['dc']
+
+
+    def control(self, e):
+
+        return self.dc

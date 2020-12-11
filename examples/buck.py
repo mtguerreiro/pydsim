@@ -14,7 +14,7 @@ v_in = 12
 V_ref = 6
 
 # Sim time
-t_sim = 50e-3
+t_sim = 20e-3
 
 # PWM period
 t_pwm = 1/100e3
@@ -35,8 +35,15 @@ v_ref = 6 * np.ones(n)
 
 v_in = 12*np.ones(n)
 v_in[:int(n/5)] = 12
-v_in[int(n/5):] = 11
+v_in[int(n/5):] = 20
 
 buck.sim(v_ref=v_ref, v_in=v_in)
 t = buck.t
 x = buck.x
+
+buck.sim(v_ref=v_ref, v_in=v_in, control='pi')
+t1 = buck.t
+x1 = buck.x
+
+plt.plot(t, x[:, 1])
+plt.plot(t1, x1[:, 1])
