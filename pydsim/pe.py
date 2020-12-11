@@ -108,15 +108,99 @@ class Buck:
 
         # Control
         if control == 'pi':
-            ctlparams = {'ki': 1000, 'kp': 0.1, 'dt': n_pwm * self.dt}
+            ctlparams = {'ki': 5000, 'kp': 0, 'dt': n_pwm * self.dt}
             ctlini = {'e_1': v_ref[0] - x[0, 1], 'u_1': v_ref[0] / v_in[0]}
             ctl = pydctl.PI(ctlparams)
+            #ctl.set_initial_conditions(ctlini)
+
+        elif control == 'mpc':
+            ctlparams = {'A': self.Am, 'B': self.Bm, 'C': self.Cm,
+                         'dt': n_pwm * self.dt, 'alpha': 1, 'beta': 0}
+            ctl = pydctl.MPC(ctlparams)
+
         else:
             ctlparams = {'dc': v_ref[0] / v_in[0]}
             ctlini = {'dc': v_ref[0] / v_in[0]}
             ctl = pydctl.OL(ctlparams)
+            ctl.set_initial_conditions(ctlini)
+        
+        #pi = pydctl.PI(0.1, 1000, n_pwm * self.dt)
+        #u_1 = v_ref[0] / v_in[0]
+        #e_1 = v_ref[0] - x[0, 1]
+        #pi.set_initial_conditions(u_1, e_1)
+        
+        # Triangle reference for PWM
+        u_t = np.arange(0, 1, 1 / n_pwm)
+
+        # Control signal applied within switching period
+        u_s = np.zeros((n_pwm, 1))
+
+        pwm = np.zeros((n, 1))
+
+        # Reference signal
+        #v_ref_a = v_ref * np.ones((n_cycles, 1))
+    
+        ii = 0
+        _ti = time.time()
+        
+        # Loops for each switching cycle
+        for i in range(n_cycles):
+
+            i_s = ii
+            i_e = ii + n_pwm
+
+            #self.u[ii:(n_pwm*(ii+1))] = v_ref[i] / self.v_in
+            # Computes control law
+            #e = (v_ref[i] - x[ii, 1]) / v_in[i]
+            u = ctl.control(x[ii], v_in[i], v_ref[i])
+
+            self.u[i_s:i_e] = u
+
+            #u_t = np.arange(0, self.v_in, self.v_in / n_pwm)
+            u_s[:] = 0
+            u_s[u_t < u, 0] = v_in[i]
+
+            # System's response for one switching cycle - with numba
+            pydnb.sim(x[i_s:i_e, :], self.Ad, self.Bd, u_s, n_pwm)
+            ii = ii + n_pwm
             
-        ctl.set_initial_conditions(ctlini)
+            # System's response for one switching cycle
+            #for j in range(n_pwm):
+            #    x[ii + 1] = self.Ad @ x[ii] + self.Bd @ u_s[j]
+            #    #self.e[ii] = v_ref_a[i] - x[ii, 1]
+            #    ii = ii + 1
+            pwm[i_s:i_e] = u_s
+        
+        self.x = x[:-1, :]
+        self.pwm = pwm
+                
+        _tf = time.time()
+        print('Sim time: {:.4f} s\n'.format(_tf - _ti))
+
+
+    def mpc_sim(self, v_ref, v_in=None, control='ol', beta=0):
+
+        # Loads useful variables
+        n = self.n
+        n_pwm = self.n_pwm
+        n_cycles = self.n_cycles
+
+        if type(v_ref) is int or type(v_ref) is float:
+            v_ref = v_ref * np.ones(n_cycles)
+
+        if v_in is None:
+            v_in = self.v_in * np.ones(n_cycles)
+
+        # Vectors
+        x = np.zeros((n + 1, 2))
+        x[0] = self.x[0]
+
+        # Control
+        ctlparams = {'A': self.Am, 'B': self.Bm, 'C': self.Cm,
+                     'dt': n_pwm * self.dt, 'alpha': 1, 'beta': 0}
+        #ctlini = {'e_1': v_ref[0] - x[0, 1], 'u_1': v_ref[0] / v_in[0]}
+        ctl = pydctl.MPC(ctlparams)
+        #ctl.set_initial_conditions(ctlini)
         
         #pi = pydctl.PI(0.1, 1000, n_pwm * self.dt)
         #u_1 = v_ref[0] / v_in[0]
@@ -143,10 +227,8 @@ class Buck:
 
             #self.u[ii:(n_pwm*(ii+1))] = v_ref[i] / self.v_in
             # Computes control law
-            e = (v_ref[i] - x[ii, 1]) / v_in[i]
-            
-            #self.u[ii:(n_pwm*(ii+1))] = v_ref_a[i]
-            self.u[i_s:i_e] = ctl.control(e)
+            u = ctl.control(x[ii], v_in[i], v_ref[i]) 
+            self.u[i_s:i_e] = u
 
             #u_t = np.arange(0, self.v_in, self.v_in / n_pwm)
             u_s[:] = 0
@@ -167,89 +249,3 @@ class Buck:
                 
         _tf = time.time()
         print('Sim time: {:.4f} s\n'.format(_tf - _ti))
-
-
-    def mpc_sim(self, v_ref, v_in=None, control='ol', beta=0):
-
-        alpha = 1
-        #beta = 1
-        # Loads useful variables
-        n = self.n
-        n_pwm = self.n_pwm
-        n_cycles = self.n_cycles
-
-        if type(v_ref) is int or type(v_ref) is float:
-            v_ref = v_ref * np.ones(n)
-
-        if v_in is None:
-            v_in = self.v_in * np.ones((n, 1))
-
-        # Vectors
-        x = np.zeros((n + 1, 2))
-        x[0] = self.x[0]
-    
-        _ti = time.time()
-
-        J = np.zeros(n)
-        J_u_0 = np.zeros(n)
-        J_u_0_0 = np.zeros(n)
-        J_u_0_1 = np.zeros(n)
-        J_u_1 = np.zeros(n)
-        J_u_1_0 = np.zeros(n)
-        J_u_1_1 = np.zeros(n)
-        
-        # Loops time instant
-        for i in range(n):
-
-            # Calculates the system output and cost function for u = 0 and u = 1
-            x_u_0 = self.Ad @ x[i]
-            x_u_0_0 = self.Ad @ x_u_0
-            x_u_0_1 = self.Ad @ x_u_0 + self.Bd @ v_in[i]
-            
-            x_u_1 = self.Ad @ x[i] + self.Bd @ v_in[i]
-            x_u_1_0 = self.Ad @ x_u_1
-            x_u_1_1 = self.Ad @ x_u_1 + self.Bd @ v_in[i]
-            
-            #print(x_u_0[1])
-            #print(v_ref[i])
-
-            J_u_0[i] = alpha * (v_ref[i] - x_u_0[1]) ** 2
-            J_u_0_0[i] = J_u_0[i] + alpha * (v_ref[i] - x_u_0_0[1]) ** 2
-            J_u_0_1[i] = J_u_0[i] + alpha * (v_ref[i] - x_u_0_1[1]) ** 2 + beta
-            if J_u_0_0[i] < J_u_0_0[i]:
-                J_u_0[i] = J_u_0_0[i]
-            else:
-                J_u_0[i] = J_u_0_1[i]
-
-            J_u_1[i] = alpha * (v_ref[i] - x_u_1[1]) ** 2 + beta
-            J_u_1_0[i] = J_u_1[i] + alpha * (v_ref[i] - x_u_1_0[1]) ** 2
-            J_u_1_1[i] = J_u_1[i] + alpha * (v_ref[i] - x_u_1_1[1]) ** 2 + beta
-            if J_u_1_0[i] < J_u_1_0[i]:
-                J_u_1[i] = J_u_1_0[i]
-            else:
-                J_u_1[i] = J_u_1_1[i]
-                
-            self.u[i] = 0
-            J[i] = J_u_0[i]
-            if J_u_1[i] <= J_u_0[i]:
-                self.u[i] = v_in[i]
-                J[i] = J_u_1[i]
-
-            x[i + 1] = self.Ad @ x[i] + self.Bd @ self.u[i]
-            # System's response for one switching cycle - with numba
-            #pydnb.sim(x[i_s:i_e, :], self.Ad, self.Bd, u_s, n_pwm)
-            #ii = ii + n_pwm
-            
-            # System's response for one switching cycle
-            #for j in range(n_pwm):
-            #    x[ii + 1] = self.Ad @ x[ii] + self.Bd @ u_s[j]
-            #    #self.e[ii] = v_ref_a[i] - x[ii, 1]
-            #    ii = ii + 1
-            #self.pwm[i_s:i_e] = u_s
-        
-        self.x = x[:-1, :]
-                
-        _tf = time.time()
-        print('Sim time: {:.4f} s\n'.format(_tf - _ti))
-
-        return J, J_u_0, J_u_1
