@@ -167,3 +167,89 @@ class Buck:
                 
         _tf = time.time()
         print('Sim time: {:.4f} s\n'.format(_tf - _ti))
+
+
+    def mpc_sim(self, v_ref, v_in=None, control='ol', beta=0):
+
+        alpha = 1
+        #beta = 1
+        # Loads useful variables
+        n = self.n
+        n_pwm = self.n_pwm
+        n_cycles = self.n_cycles
+
+        if type(v_ref) is int or type(v_ref) is float:
+            v_ref = v_ref * np.ones(n)
+
+        if v_in is None:
+            v_in = self.v_in * np.ones((n, 1))
+
+        # Vectors
+        x = np.zeros((n + 1, 2))
+        x[0] = self.x[0]
+    
+        _ti = time.time()
+
+        J = np.zeros(n)
+        J_u_0 = np.zeros(n)
+        J_u_0_0 = np.zeros(n)
+        J_u_0_1 = np.zeros(n)
+        J_u_1 = np.zeros(n)
+        J_u_1_0 = np.zeros(n)
+        J_u_1_1 = np.zeros(n)
+        
+        # Loops time instant
+        for i in range(n):
+
+            # Calculates the system output and cost function for u = 0 and u = 1
+            x_u_0 = self.Ad @ x[i]
+            x_u_0_0 = self.Ad @ x_u_0
+            x_u_0_1 = self.Ad @ x_u_0 + self.Bd @ v_in[i]
+            
+            x_u_1 = self.Ad @ x[i] + self.Bd @ v_in[i]
+            x_u_1_0 = self.Ad @ x_u_1
+            x_u_1_1 = self.Ad @ x_u_1 + self.Bd @ v_in[i]
+            
+            #print(x_u_0[1])
+            #print(v_ref[i])
+
+            J_u_0[i] = alpha * (v_ref[i] - x_u_0[1]) ** 2
+            J_u_0_0[i] = J_u_0[i] + alpha * (v_ref[i] - x_u_0_0[1]) ** 2
+            J_u_0_1[i] = J_u_0[i] + alpha * (v_ref[i] - x_u_0_1[1]) ** 2 + beta
+            if J_u_0_0[i] < J_u_0_0[i]:
+                J_u_0[i] = J_u_0_0[i]
+            else:
+                J_u_0[i] = J_u_0_1[i]
+
+            J_u_1[i] = alpha * (v_ref[i] - x_u_1[1]) ** 2 + beta
+            J_u_1_0[i] = J_u_1[i] + alpha * (v_ref[i] - x_u_1_0[1]) ** 2
+            J_u_1_1[i] = J_u_1[i] + alpha * (v_ref[i] - x_u_1_1[1]) ** 2 + beta
+            if J_u_1_0[i] < J_u_1_0[i]:
+                J_u_1[i] = J_u_1_0[i]
+            else:
+                J_u_1[i] = J_u_1_1[i]
+                
+            self.u[i] = 0
+            J[i] = J_u_0[i]
+            if J_u_1[i] <= J_u_0[i]:
+                self.u[i] = v_in[i]
+                J[i] = J_u_1[i]
+
+            x[i + 1] = self.Ad @ x[i] + self.Bd @ self.u[i]
+            # System's response for one switching cycle - with numba
+            #pydnb.sim(x[i_s:i_e, :], self.Ad, self.Bd, u_s, n_pwm)
+            #ii = ii + n_pwm
+            
+            # System's response for one switching cycle
+            #for j in range(n_pwm):
+            #    x[ii + 1] = self.Ad @ x[ii] + self.Bd @ u_s[j]
+            #    #self.e[ii] = v_ref_a[i] - x[ii, 1]
+            #    ii = ii + 1
+            #self.pwm[i_s:i_e] = u_s
+        
+        self.x = x[:-1, :]
+                
+        _tf = time.time()
+        print('Sim time: {:.4f} s\n'.format(_tf - _ti))
+
+        return J, J_u_0, J_u_1
