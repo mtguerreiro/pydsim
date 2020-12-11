@@ -14,7 +14,7 @@ v_in = 10
 V_ref = 5
 
 # Sim time
-t_sim = 20e-3
+t_sim = 10e-3
 
 # PWM period
 t_pwm = 1/200e3
@@ -31,11 +31,11 @@ buck.set_v_in(v_in)
 n = buck.n_cycles
 v_ref = 5 * np.ones(n)
 v_ref[:int(n/2)] = 5
-v_ref[int(n/2):] = 8
+v_ref[int(n/2):] = 2
 
 v_in = 10 * np.ones(n)
 #v_in[:int(n/5)] = 12
-#v_in[int(n/5):] = 20
+#v_in[int(n/2):] = 20
 
 buck.sim(v_ref=v_ref, v_in=v_in, control='pi')
 t = buck.t

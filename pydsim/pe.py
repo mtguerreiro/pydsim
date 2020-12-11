@@ -117,6 +117,7 @@ class Buck:
             ctlparams = {'A': self.Am, 'B': self.Bm, 'C': self.Cm,
                          'dt': n_pwm * self.dt, 'alpha': 1, 'beta': 0}
             ctl = pydctl.MPC(ctlparams)
+            self.ctl = ctl
 
         else:
             ctlparams = {'dc': v_ref[0] / v_in[0]}

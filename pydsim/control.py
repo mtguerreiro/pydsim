@@ -73,43 +73,75 @@ class MPC:
         self.Bd = self.dt * self.B
 
 
+    def pred_cost(self, x, u, ref):
+        
+        x_u_1 = self.Ad @ x + self.Bd * u
+        j_u_1 = self.alpha * (ref - x_u_1[1, 0]) ** 2 + self.beta * u ** 2
+
+        return x_u_1, j_u_1
+    
+    
+    def opt(self, x, u, ref, n_step):
+
+        x_u_0, j_u_0 = self.pred_cost(x, 0, ref)
+        if n_step != 1:
+            u_0_opt, j_0_opt = self.opt(x_u_0, u, ref, n_step - 1)
+            j_u_0 += j_0_opt
+
+        x_u_1, j_u_1 = self.pred_cost(x, u, ref)
+        if n_step != 1:
+            u_1_opt, j_1_opt = self.opt(x_u_1, u, ref, n_step - 1)
+            j_u_1 += j_1_opt
+
+        if j_u_0 < j_u_1:
+            j_opt = j_u_0
+            u_opt = 0
+        else:
+            j_opt = j_u_1
+            u_opt = u
+        
+        return u_opt, j_opt
+
+
     def control(self, x, u, ref):
 
         x = x.reshape(-1, 1)
+
+        u_opt, j_opt = self.opt(x, u, ref, 2)
         
-        x_u_0 = self.Ad @ x
-        x_u_0_0 = self.Ad @ x_u_0
-        x_u_0_1 = self.Ad @ x_u_0 + self.Bd * u
-            
-        x_u_1 = self.Ad @ x + self.Bd * u
-        x_u_1_0 = self.Ad @ x_u_1
-        x_u_1_1 = self.Ad @ x_u_1 + self.Bd * u
-
-        #print(x_u_0)
-        #print(x_u_0_0)
-        #print(x_u_0_1)
-        #print(x_u_1)
-        #print(x_u_1_0)
-        #print(x_u_1_1)
-
-        J_u_0 = self.alpha * (ref - x_u_0[1, 0]) ** 2
-        J_u_0_0 = J_u_0 + self.alpha * (ref - x_u_0_0[1, 0]) ** 2
-        J_u_0_1 = J_u_0 + self.alpha * (ref - x_u_0_1[1, 0]) ** 2 + self.beta
-        if J_u_0_0 < J_u_0_1:
-            J_u_0 = J_u_0_0
-        else:
-            J_u_0 = J_u_0_1
-
-        J_u_1 = self.alpha * (ref - x_u_1[1, 0]) ** 2 + self.beta
-        J_u_1_0 = J_u_1 + self.alpha * (ref - x_u_1_0[1, 0]) ** 2
-        J_u_1_1 = J_u_1 + self.alpha * (ref - x_u_1_1[1, 0]) ** 2 + self.beta 
-        if J_u_1_0 < J_u_1_1:
-            J_u_1 = J_u_1_0
-        else:
-            J_u_1 = J_u_1_1
-
-        u_opt = 0
-        if J_u_1 < J_u_0:
-            u_opt = 1
+##        x_u_0 = self.Ad @ x
+##        x_u_0_0 = self.Ad @ x_u_0
+##        x_u_0_1 = self.Ad @ x_u_0 + self.Bd * u
+##            
+##        x_u_1 = self.Ad @ x + self.Bd * u
+##        x_u_1_0 = self.Ad @ x_u_1
+##        x_u_1_1 = self.Ad @ x_u_1 + self.Bd * u
+##
+##        #print(x_u_0)
+##        #print(x_u_0_0)
+##        #print(x_u_0_1)
+##        #print(x_u_1)
+##        #print(x_u_1_0)
+##        #print(x_u_1_1)
+##
+##        J_u_0 = self.alpha * (ref - x_u_0[1, 0]) ** 2
+##        J_u_0_0 = J_u_0 + self.alpha * (ref - x_u_0_0[1, 0]) ** 2
+##        J_u_0_1 = J_u_0 + self.alpha * (ref - x_u_0_1[1, 0]) ** 2 + self.beta
+##        if J_u_0_0 < J_u_0_1:
+##            J_u_0 = J_u_0_0
+##        else:
+##            J_u_0 = J_u_0_1
+##
+##        J_u_1 = self.alpha * (ref - x_u_1[1, 0]) ** 2 + self.beta
+##        J_u_1_0 = J_u_1 + self.alpha * (ref - x_u_1_0[1, 0]) ** 2
+##        J_u_1_1 = J_u_1 + self.alpha * (ref - x_u_1_1[1, 0]) ** 2 + self.beta 
+##        if J_u_1_0 < J_u_1_1:
+##            J_u_1 = J_u_1_0
+##        else:
+##            J_u_1 = J_u_1_1
+##
+##        u_opt = 0
+##        if J_u_1 < J_u_0:
+##            u_opt = 1
 
         return u_opt
