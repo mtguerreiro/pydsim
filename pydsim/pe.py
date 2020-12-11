@@ -83,6 +83,11 @@ class Buck:
         self.pwm = np.zeros((self.n, 1))
         self.e = np.zeros((self.n, 1))
 
+
+    def set_initial_conditions(self, il, vc):
+        self.x[0, 0] = il
+        self.x[0, 1] = vc
+
     
     def sim(self, v_ref, v_in=None):
 
@@ -96,12 +101,16 @@ class Buck:
 
         if v_in is None:
             v_in = self.v_in * np.ones(n_cycles)
-        
-        # Control
-        pi = pydctl.PI(0.05, 750, n_pwm * self.dt)
 
         # Vectors
         x = np.zeros((n + 1, 2))
+        x[0] = self.x[0]
+
+        # Control
+        pi = pydctl.PI(0.1, 1000, n_pwm * self.dt)
+        u_1 = v_ref[0] / v_in[0]
+        e_1 = v_ref[0] - x[0, 1]
+        pi.set_initial_conditions(u_1, e_1)
         
         # Triangle reference for PWM
         u_t = np.arange(0, 1, 1 / n_pwm)
@@ -142,7 +151,7 @@ class Buck:
             #    #self.e[ii] = v_ref_a[i] - x[ii, 1]
             #    ii = ii + 1
             self.pwm[i_s:i_e] = u_s
-
+        
         self.x = x[:-1, :]
                 
         _tf = time.time()

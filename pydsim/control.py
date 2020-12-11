@@ -19,6 +19,11 @@ class PI:
         self.dt = dt
 
 
+    def set_initial_conditions(self, u_1, e_1):
+        self.u_1 = u_1
+        self.e_1 = e_1
+
+
     def control(self, e):
 
         u = self.u_1 + self.kp * e + (self.dt * self.ki - self.kp) * self.e_1
