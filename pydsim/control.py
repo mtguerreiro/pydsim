@@ -65,6 +65,8 @@ class MPC:
         self.alpha = mpc_params['alpha']
         self.beta = mpc_params['beta']
 
+        self.n_step = mpc_params['n_step']
+
         self.set_model(self.A, self.B, self.C, self.dt)
 
 
@@ -107,41 +109,6 @@ class MPC:
 
         x = x.reshape(-1, 1)
 
-        u_opt, j_opt = self.opt(x, u, ref, 2)
-        
-##        x_u_0 = self.Ad @ x
-##        x_u_0_0 = self.Ad @ x_u_0
-##        x_u_0_1 = self.Ad @ x_u_0 + self.Bd * u
-##            
-##        x_u_1 = self.Ad @ x + self.Bd * u
-##        x_u_1_0 = self.Ad @ x_u_1
-##        x_u_1_1 = self.Ad @ x_u_1 + self.Bd * u
-##
-##        #print(x_u_0)
-##        #print(x_u_0_0)
-##        #print(x_u_0_1)
-##        #print(x_u_1)
-##        #print(x_u_1_0)
-##        #print(x_u_1_1)
-##
-##        J_u_0 = self.alpha * (ref - x_u_0[1, 0]) ** 2
-##        J_u_0_0 = J_u_0 + self.alpha * (ref - x_u_0_0[1, 0]) ** 2
-##        J_u_0_1 = J_u_0 + self.alpha * (ref - x_u_0_1[1, 0]) ** 2 + self.beta
-##        if J_u_0_0 < J_u_0_1:
-##            J_u_0 = J_u_0_0
-##        else:
-##            J_u_0 = J_u_0_1
-##
-##        J_u_1 = self.alpha * (ref - x_u_1[1, 0]) ** 2 + self.beta
-##        J_u_1_0 = J_u_1 + self.alpha * (ref - x_u_1_0[1, 0]) ** 2
-##        J_u_1_1 = J_u_1 + self.alpha * (ref - x_u_1_1[1, 0]) ** 2 + self.beta 
-##        if J_u_1_0 < J_u_1_1:
-##            J_u_1 = J_u_1_0
-##        else:
-##            J_u_1 = J_u_1_1
-##
-##        u_opt = 0
-##        if J_u_1 < J_u_0:
-##            u_opt = 1
+        u_opt, j_opt = self.opt(x, u, ref, self.n_step)
 
         return u_opt

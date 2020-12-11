@@ -43,17 +43,24 @@ x = buck.x
 u = buck.u
 pwm = buck.pwm
 
-buck.sim(v_ref=v_ref, v_in=v_in, control='mpc')
+buck.sim(v_ref=v_ref, v_in=v_in, control='mpc', n_step=2)
 t1 = buck.t
 x1 = buck.x
 u1 = buck.u
 pwm1 = buck.pwm
 
+buck.sim(v_ref=v_ref, v_in=v_in, control='mpc', n_step=5)
+t2 = buck.t
+x2 = buck.x
+u2 = buck.u
+pwm2 = buck.pwm
+
+
 plt.figure()
 sp1 = plt.subplot(2,1,1)
-plt.plot(t, x[:, 1])
 plt.plot(t1, x1[:, 1])
+plt.plot(t2, x2[:, 1])
 
 plt.subplot(2,1,2, sharex=sp1)
-plt.plot(t, pwm)
 plt.plot(t1, pwm1)
+plt.plot(t2, pwm2)

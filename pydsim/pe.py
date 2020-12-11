@@ -89,7 +89,7 @@ class Buck:
         self.x[0, 1] = vc
 
     
-    def sim(self, v_ref, v_in=None, control='ol'):
+    def sim(self, v_ref, v_in=None, control='ol', n_step=2):
 
         # Loads useful variables
         n = self.n
@@ -115,7 +115,8 @@ class Buck:
 
         elif control == 'mpc':
             ctlparams = {'A': self.Am, 'B': self.Bm, 'C': self.Cm,
-                         'dt': n_pwm * self.dt, 'alpha': 1, 'beta': 0}
+                         'dt': n_pwm * self.dt, 'alpha': 1, 'beta': 0,
+                         'n_step': n_step}
             ctl = pydctl.MPC(ctlparams)
             self.ctl = ctl
 
