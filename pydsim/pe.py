@@ -117,7 +117,7 @@ class Buck:
 
             #self.u[ii:(n_pwm*(ii+1))] = v_ref[i] / self.v_in
             # Computes control law
-            e = v_ref[i] - x[ii, 1]
+            e = (v_ref[i] - x[ii, 1]) / v_in[i]
             
             #self.u[ii:(n_pwm*(ii+1))] = v_ref_a[i]
             self.u[ii:(n_pwm*(ii+1))] = pi.control(e)
