@@ -6,6 +6,8 @@ import pydsim.utils as pydutils
 import pydsim.control as pydctl
 import pydsim.nbutils as pydnb
 
+import pysp
+
 class Buck:
 
     def __init__(self, R, L, C):
@@ -22,6 +24,9 @@ class Buck:
         self.Bm = np.array([[1/L],
                   [0]])
         self.Cm = np.array([0, 1])
+
+        # Set up filter
+        #self.filter = self.init_filter()
 
     
     def init_params(self):
@@ -43,6 +48,7 @@ class Buck:
             self.set_vectors()
         
         self.set_model(self.R, self.L, self.C)
+        self.init_filter()
 
     
     def set_sim_time(self, t_sim):
@@ -87,6 +93,19 @@ class Buck:
     def set_initial_conditions(self, il, vc):
         self.x[0, 0] = il
         self.x[0, 1] = vc
+        
+    
+
+    def init_filter(self):
+        wp = 2 * np.pi * 10e3
+        Hwp = 0.707
+
+        ws = 2 * np.pi * 100e3
+        Hws = 0.01
+
+        self.filter = pysp.filters.butter(wp, Hwp, ws, Hws, T=self.dt, method='bilinear')
+        self.filter_num = self.filter.tfz_sos[0][0]
+        self.filter_den = self.filter.tfz_sos[1][0]
 
     
     def sim(self, v_ref, v_in=None, control='ol', n_step=2):
@@ -95,6 +114,9 @@ class Buck:
         n = self.n
         n_pwm = self.n_pwm
         n_cycles = self.n_cycles
+        fnum = 2 * self.filter_num
+        fden = self.filter_den
+        f_tf = (fnum, fden)
 
         if type(v_ref) is int or type(v_ref) is float:
             v_ref = v_ref * np.ones(n_cycles)
@@ -105,6 +127,7 @@ class Buck:
         # Vectors
         x = np.zeros((n + 1, 2))
         x[0] = self.x[0]
+        xfilt = np.zeros((n + 1, 2))
 
         # Control
         if control == 'pi':
@@ -154,7 +177,7 @@ class Buck:
             #self.u[ii:(n_pwm*(ii+1))] = v_ref[i] / self.v_in
             # Computes control law
             #e = (v_ref[i] - x[ii, 1]) / v_in[i]
-            u = ctl.control(x[ii], v_in[i], v_ref[i])
+            u = ctl.control(xfilt[ii], v_in[i], v_ref[i])
 
             self.u[i_s:i_e] = u
 
@@ -165,6 +188,11 @@ class Buck:
             # System's response for one switching cycle - with numba
             pydnb.sim(x[i_s:i_e, :], self.Ad, self.Bd, u_s, n_pwm)
             ii = ii + n_pwm
+
+            # Filters the voltage
+            xi = np.array([x[i_s - 1, 1], x[i_s - 2, 1]])
+            yi = np.array([xfilt[i_s - 1, 1], xfilt[i_s - 2, 1]])
+            xfilt[i_s:(i_e+1), 1] = pysp.filter_utils.sos_filter(f_tf, x[i_s:(i_e+1), 1], x_init=xi, y_init=yi)
             
             # System's response for one switching cycle
             #for j in range(n_pwm):
@@ -174,6 +202,7 @@ class Buck:
             pwm[i_s:i_e] = u_s
         
         self.x = x[:-1, :]
+        self.xfilt = xfilt[:-1, :]
         self.pwm = pwm
                 
         _tf = time.time()
