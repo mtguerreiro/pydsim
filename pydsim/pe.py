@@ -26,6 +26,7 @@ class Buck:
         self.Cm = np.array([0, 1])
 
         # Set up filter
+        self.filter = None
         #self.filter = self.init_filter()
 
     
@@ -48,7 +49,8 @@ class Buck:
             self.set_vectors()
         
         self.set_model(self.R, self.L, self.C)
-        self.init_filter()
+        if self.filter is not None:
+            self.init_filter()
 
     
     def set_sim_time(self, t_sim):
@@ -95,14 +97,28 @@ class Buck:
         self.x[0, 1] = vc
         
     
+    def set_filter(self, fc):
 
+        # Sets the pass band
+        self.__filter_wp = 2 * np.pi * fc
+        self.__filter_Hwp = 0.707
+
+        # Sets the stop band with frequency one decade after fc and
+        # attenuation of 40 dB (for a 2nd order filter)
+        self.__filter_ws = 2 * np.pi * 10 * fc
+        self.__filter_Hws = 0.01
+
+        self.filter = None
+        if self.dt is not None:
+            self.init_filter()
+
+        
     def init_filter(self):
-        wp = 2 * np.pi * 10e3
-        Hwp = 0.707
-
-        ws = 2 * np.pi * 100e3
-        Hws = 0.01
-
+        wp = self.__filter_wp
+        Hwp = self.__filter_Hwp
+        ws = self.__filter_ws
+        Hws = self.__filter_Hws
+        
         self.filter = pysp.filters.butter(wp, Hwp, ws, Hws, T=self.dt, method='bilinear')
         self.filter_num = self.filter.tfz_sos[0][0]
         self.filter_den = self.filter.tfz_sos[1][0]
@@ -114,9 +130,10 @@ class Buck:
         n = self.n
         n_pwm = self.n_pwm
         n_cycles = self.n_cycles
-        fnum = 2 * self.filter_num
-        fden = self.filter_den
-        f_tf = (fnum, fden)
+        if self.filter is not None:
+            fnum = 2 * self.filter_num
+            fden = self.filter_den
+            f_tf = (fnum.astype(np.float), fden.astype(np.float))
 
         if type(v_ref) is int or type(v_ref) is float:
             v_ref = v_ref * np.ones(n_cycles)
@@ -171,112 +188,39 @@ class Buck:
         # Loops for each switching cycle
         for i in range(n_cycles):
 
+            # Indexes for the start and end of this cycle
             i_s = ii
             i_e = ii + n_pwm
 
-            #self.u[ii:(n_pwm*(ii+1))] = v_ref[i] / self.v_in
             # Computes control law
-            #e = (v_ref[i] - x[ii, 1]) / v_in[i]
-            u = ctl.control(xfilt[ii], v_in[i], v_ref[i])
-
+            if self.filter is None:
+                u = ctl.control(x[ii], v_in[i], v_ref[i])
+            else:
+                u = ctl.control(xfilt[ii], v_in[i], v_ref[i])
             self.u[i_s:i_e] = u
 
-            #u_t = np.arange(0, self.v_in, self.v_in / n_pwm)
             u_s[:] = 0
             u_s[u_t < u, 0] = v_in[i]
 
             # System's response for one switching cycle - with numba
             pydnb.sim(x[i_s:i_e, :], self.Ad, self.Bd, u_s, n_pwm)
-            ii = ii + n_pwm
-
-            # Filters the voltage
-            xi = np.array([x[i_s - 1, 1], x[i_s - 2, 1]])
-            yi = np.array([xfilt[i_s - 1, 1], xfilt[i_s - 2, 1]])
-            xfilt[i_s:(i_e+1), 1] = pysp.filter_utils.sos_filter(f_tf, x[i_s:(i_e+1), 1], x_init=xi, y_init=yi)
             
-            # System's response for one switching cycle
-            #for j in range(n_pwm):
-            #    x[ii + 1] = self.Ad @ x[ii] + self.Bd @ u_s[j]
-            #    #self.e[ii] = v_ref_a[i] - x[ii, 1]
-            #    ii = ii + 1
+            # Filters the voltage. Remember that the system's response for one
+            # switching cycle gives us the system's output at i_e + 1 (note
+            # the dif. equation x[n+1] = Ax[n]...). Thus, we filter up to the
+            # i_e + 1 sample.
+            if self.filter is not None:
+                xi = np.array([x[i_s - 1, 1], x[i_s - 2, 1]])
+                yi = np.array([xfilt[i_s - 1, 1], xfilt[i_s - 2, 1]])
+                xfilt[i_s:(i_e + 1), 1] = pysp.filter_utils.sos_filter(f_tf, x[i_s:(i_e + 1), 1], x_init=xi, y_init=yi)
+            
             pwm[i_s:i_e] = u_s
+
+            ii = ii + n_pwm
         
         self.x = x[:-1, :]
         self.xfilt = xfilt[:-1, :]
         self.pwm = pwm
-                
-        _tf = time.time()
-        print('Sim time: {:.4f} s\n'.format(_tf - _ti))
-
-
-    def mpc_sim(self, v_ref, v_in=None, control='ol', beta=0):
-
-        # Loads useful variables
-        n = self.n
-        n_pwm = self.n_pwm
-        n_cycles = self.n_cycles
-
-        if type(v_ref) is int or type(v_ref) is float:
-            v_ref = v_ref * np.ones(n_cycles)
-
-        if v_in is None:
-            v_in = self.v_in * np.ones(n_cycles)
-
-        # Vectors
-        x = np.zeros((n + 1, 2))
-        x[0] = self.x[0]
-
-        # Control
-        ctlparams = {'A': self.Am, 'B': self.Bm, 'C': self.Cm,
-                     'dt': n_pwm * self.dt, 'alpha': 1, 'beta': 0}
-        #ctlini = {'e_1': v_ref[0] - x[0, 1], 'u_1': v_ref[0] / v_in[0]}
-        ctl = pydctl.MPC(ctlparams)
-        #ctl.set_initial_conditions(ctlini)
-        
-        #pi = pydctl.PI(0.1, 1000, n_pwm * self.dt)
-        #u_1 = v_ref[0] / v_in[0]
-        #e_1 = v_ref[0] - x[0, 1]
-        #pi.set_initial_conditions(u_1, e_1)
-        
-        # Triangle reference for PWM
-        u_t = np.arange(0, 1, 1 / n_pwm)
-
-        # Control signal applied within switching period
-        u_s = np.zeros((n_pwm, 1))
-
-        # Reference signal
-        #v_ref_a = v_ref * np.ones((n_cycles, 1))
-    
-        ii = 0
-        _ti = time.time()
-        
-        # Loops for each switching cycle
-        for i in range(n_cycles):
-
-            i_s = ii
-            i_e = ii + n_pwm
-
-            #self.u[ii:(n_pwm*(ii+1))] = v_ref[i] / self.v_in
-            # Computes control law
-            u = ctl.control(x[ii], v_in[i], v_ref[i]) 
-            self.u[i_s:i_e] = u
-
-            #u_t = np.arange(0, self.v_in, self.v_in / n_pwm)
-            u_s[:] = 0
-            u_s[u_t < self.u[ii], 0] = v_in[i]
-
-            # System's response for one switching cycle - with numba
-            pydnb.sim(x[i_s:i_e, :], self.Ad, self.Bd, u_s, n_pwm)
-            ii = ii + n_pwm
-            
-            # System's response for one switching cycle
-            #for j in range(n_pwm):
-            #    x[ii + 1] = self.Ad @ x[ii] + self.Bd @ u_s[j]
-            #    #self.e[ii] = v_ref_a[i] - x[ii, 1]
-            #    ii = ii + 1
-            self.pwm[i_s:i_e] = u_s
-        
-        self.x = x[:-1, :]
                 
         _tf = time.time()
         print('Sim time: {:.4f} s\n'.format(_tf - _ti))

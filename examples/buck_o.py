@@ -15,7 +15,7 @@ v_in = 10
 V_ref = 5
 
 # Sim time
-t_sim = 10e-3
+t_sim = 20e-3
 
 # PWM period
 t_pwm = 1/200e3
@@ -27,6 +27,7 @@ buck = pyd.pe.Buck(R, L, C)
 buck.set_pwm(t_pwm, n_pwm)
 buck.set_sim_time(t_sim)
 buck.set_v_in(v_in)
+#buck.set_filter(10e3)
 #buck.set_initial_conditions(0.5, 6)
 
 n = buck.n_cycles
@@ -43,3 +44,12 @@ t = buck.t
 x = buck.x
 u = buck.u
 pwm = buck.pwm
+
+##buck.sim(v_ref=v_ref, v_in=v_in, control='mpc', n_step=5)
+##t1 = buck.t
+##x1 = buck.x
+##u1 = buck.u
+##pwm1 = buck.pwm
+
+plt.plot(t, x[:, 1])
+##plt.plot(t1, x1[:, 1])
