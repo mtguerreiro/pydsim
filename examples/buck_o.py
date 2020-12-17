@@ -32,19 +32,31 @@ buck.set_v_in(v_in)
 
 n = buck.n_cycles
 v_ref = 12 * np.ones(n)
-v_ref[int(n/2):] = 19
+#v_ref[int(n/2):] = 19
 
 v_in = 24 * np.ones(n)
-#v_in[:int(n/5)] = 12
-#v_in[int(n/2):] = 20
+#v_in[:int(n/5)] = 24
+v_in[int(n/2):] = 18
 
-buck.sim(v_ref=v_ref, v_in=v_in, control='pi')
+##pi_params = {'ki': 1000, 'kp': 0.05}
+##buck.set_ctlparams(pi_params)
+##buck.sim(v_ref=v_ref, v_in=v_in, control='pi')
+##t = buck.t
+##x = buck.x
+##u = buck.u
+##pwm = buck.pwm
+
+mpc_params = {'alpha': 5, 'beta': 0.001, 'n_step':3}
+buck.set_ctlparams(mpc_params)
+buck.sim(v_ref=v_ref, v_in=v_in, control='mpc')
 t = buck.t
 x = buck.x
 u = buck.u
 pwm = buck.pwm
 
-buck.sim(v_ref=v_ref, v_in=v_in, control='mpc', n_step=3)
+mpc_params = {'alpha': 5, 'beta': 0, 'n_step':3}
+buck.set_ctlparams(mpc_params)
+buck.sim(v_ref=v_ref, v_in=v_in, control='mpc')
 t1 = buck.t
 x1 = buck.x
 u1 = buck.u

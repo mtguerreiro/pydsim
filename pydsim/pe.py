@@ -112,6 +112,11 @@ class Buck:
         if self.dt is not None:
             self.init_filter()
 
+
+    def set_ctlparams(self, params):
+
+        self.ctlparams = params
+
         
     def init_filter(self):
         wp = self.__filter_wp
@@ -124,7 +129,7 @@ class Buck:
         self.filter_den = self.filter.tfz_sos[1][0]
 
     
-    def sim(self, v_ref, v_in=None, control='ol', n_step=2):
+    def sim(self, v_ref, v_in=None, control='ol'):
 
         # Loads useful variables
         n = self.n
@@ -148,15 +153,18 @@ class Buck:
 
         # Control
         if control == 'pi':
-            ctlparams = {'ki': 1000, 'kp': 0.05, 'dt': n_pwm * self.dt}
+            ctlparams = self.ctlparams
+            ctlparams['dt'] =  n_pwm * self.dt
             ctlini = {'e_1': v_ref[0] - x[0, 1], 'u_1': v_ref[0] / v_in[0]}
             ctl = pydctl.PI(ctlparams)
             #ctl.set_initial_conditions(ctlini)
 
         elif control == 'mpc':
-            ctlparams = {'A': self.Am, 'B': self.Bm, 'C': self.Cm,
-                         'dt': n_pwm * self.dt, 'alpha': 1, 'beta': 0,
-                         'n_step': n_step}
+            ctlparams = self.ctlparams
+            ctlparams['A'] = self.Am
+            ctlparams['B'] = self.Bm
+            ctlparams['C'] = self.Cm
+            ctlparams['dt'] = n_pwm * self.dt
             ctl = pydctl.MPC(ctlparams)
             self.ctl = ctl
 
