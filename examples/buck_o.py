@@ -6,22 +6,22 @@ plt.ion()
 
 # --- Input ---
 # Circuit components
-R = 12
-L = 15e-6
-C = 10e-6
+R = 1.2
+L = 10e-6
+C = 560e-6
 
 # Input and reference voltage
-v_in = 10
-V_ref = 5
+v_in = 24
+V_ref = 12
 
 # Sim time
-t_sim = 20e-3
+t_sim = 30e-3
 
 # PWM period
 t_pwm = 1/200e3
 
 # Number of points per cycle
-n_pwm = 1000
+n_pwm = 500
 
 buck = pyd.pe.Buck(R, L, C)
 buck.set_pwm(t_pwm, n_pwm)
@@ -31,11 +31,10 @@ buck.set_v_in(v_in)
 #buck.set_initial_conditions(0.5, 6)
 
 n = buck.n_cycles
-v_ref = 5 * np.ones(n)
-v_ref[:int(n/2)] = 5
-v_ref[int(n/2):] = 2
+v_ref = 12 * np.ones(n)
+v_ref[int(n/2):] = 19
 
-v_in = 10 * np.ones(n)
+v_in = 24 * np.ones(n)
 #v_in[:int(n/5)] = 12
 #v_in[int(n/2):] = 20
 
@@ -45,11 +44,11 @@ x = buck.x
 u = buck.u
 pwm = buck.pwm
 
-##buck.sim(v_ref=v_ref, v_in=v_in, control='mpc', n_step=5)
-##t1 = buck.t
-##x1 = buck.x
-##u1 = buck.u
-##pwm1 = buck.pwm
+buck.sim(v_ref=v_ref, v_in=v_in, control='mpc', n_step=3)
+t1 = buck.t
+x1 = buck.x
+u1 = buck.u
+pwm1 = buck.pwm
 
 plt.plot(t, x[:, 1])
-##plt.plot(t1, x1[:, 1])
+plt.plot(t1, x1[:, 1])

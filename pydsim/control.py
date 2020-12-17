@@ -26,10 +26,14 @@ class PI:
 
     def control(self, x, u, ref):
 
+        #dt = self.dt
+        #kp = self.kp
+        #ki = self.ki
+
         e = (ref - x[1]) / u
 
         u_pi = self.u_1 + self.kp * e + (self.dt * self.ki - self.kp) * self.e_1
-
+        #u_pi = 1/2 * (2 * self.u_1 + (2 * kp + dt * ki) * e + (dt * ki - 2 * kp) * self.e_1)
         self.e_1 = e
         self.u_1 = u_pi
         

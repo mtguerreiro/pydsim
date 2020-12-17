@@ -148,7 +148,7 @@ class Buck:
 
         # Control
         if control == 'pi':
-            ctlparams = {'ki': 5000, 'kp': 0, 'dt': n_pwm * self.dt}
+            ctlparams = {'ki': 1000, 'kp': 0.05, 'dt': n_pwm * self.dt}
             ctlini = {'e_1': v_ref[0] - x[0, 1], 'u_1': v_ref[0] / v_in[0]}
             ctl = pydctl.PI(ctlparams)
             #ctl.set_initial_conditions(ctlini)
