@@ -143,7 +143,9 @@ class Buck:
         if type(v_ref) is int or type(v_ref) is float:
             v_ref = v_ref * np.ones(n_cycles)
 
-        if v_in is None:
+        if type(v_in) is int or type(v_in) is float:
+            v_in = v_in * np.ones(n_cycles)
+        elif v_in is None:
             v_in = self.v_in * np.ones(n_cycles)
 
         # Vectors
