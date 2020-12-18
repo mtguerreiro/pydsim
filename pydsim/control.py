@@ -1,3 +1,4 @@
+import scipy
 import numpy as np
 import pydsim.utils as pydutils
 
@@ -75,9 +76,10 @@ class MPC:
 
 
     def set_model(self, A, B, C, dt):
-        self.Ad = np.eye(2) + self.dt * self.A
-        self.Bd = self.dt * self.B
-
+        #self.Ad = np.eye(2) + dt * A
+        #self.Bd = dt * B
+        self.Ad, self.Bd, self.Cd, _, _ = scipy.signal.cont2discrete((A, B, C, 0), dt, method='bilinear')
+    
 
     def pred_cost(self, x, u, ref):
         

@@ -1,5 +1,6 @@
 import time
 import numpy as np
+import scipy
 import numba
 
 import pydsim.utils as pydutils
@@ -71,8 +72,9 @@ class Buck:
                   [0]])
         self.Cm = np.array([0, 1])
         
-        self.Ad = np.eye(2) + self.dt * self.Am
-        self.Bd = self.dt * self.Bm
+        self.Ad, self.Bd, self.Cd, _, _ = scipy.signal.cont2discrete((self.Am, self.Bm, self.Cm, 0), self.dt, method='bilinear')
+        #self.Ad = np.eye(2) + self.dt * self.Am
+        #self.Bd = self.dt * self.Bm
 
         self.poles, _ = np.linalg.eig(self.Am)
         self.polesd, _ = np.linalg.eig(self.Ad)        
