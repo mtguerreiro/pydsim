@@ -8,6 +8,7 @@ import pydsim.control as pydctl
 import pydsim.nbutils as pydnb
 
 import pysp
+import pynoise
 
 class Buck:
 
@@ -216,6 +217,8 @@ class Buck:
 
             # System's response for one switching cycle - with numba
             pydnb.sim(x[i_s:i_e, :], self.Ad, self.Bd, u_s, n_pwm)
+            x[i_s:i_e, 0] = pynoise.awgn(x[i_s:i_e, 0], 50)
+            x[i_s:i_e, 1] = pynoise.awgn(x[i_s:i_e, 1], 50)
             
             # Filters the voltage. Remember that the system's response for one
             # switching cycle gives us the system's output at i_e + 1 (note
