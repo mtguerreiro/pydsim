@@ -1,3 +1,4 @@
+import math
 import scipy
 import numpy as np
 import pydsim.utils as pydutils
@@ -6,9 +7,11 @@ class PI:
 
     def __init__(self, pi_params):
 
-        self.kp = pi_params['kp']
-        self.ki = pi_params['ki']
-        self.dt = pi_params['dt']
+        #self.kp = pi_params['kp']
+        #self.ki = pi_params['ki']
+        #self.dt = pi_params['dt']
+
+        self.set_params(pi_params)
         
         self.e_1 = 0
         self.u_1 = 0
@@ -19,6 +22,13 @@ class PI:
         self.ki = pi_params['ki']
         self.dt = pi_params['dt']
 
+        self.a1 = 1
+        self.b0 = 1 / 2 * (2 * self.kp + self.dt * self.ki)
+        self.b1 = 1 / 2 * (self.dt * self.ki - 2 * self.kp)
+
+        #self.a1 = 1
+        #self.b0 = self.kp
+        #self.b1 = (self.dt * self.ki - self.kp)
 
     def set_initial_conditions(self, ini_conditions):
         self.u_1 = ini_conditions['u_1']
@@ -26,15 +36,10 @@ class PI:
 
 
     def control(self, x, u, ref):
-
-        #dt = self.dt
-        #kp = self.kp
-        #ki = self.ki
-
+        
         e = (ref - x[1]) / u
-
-        u_pi = self.u_1 + self.kp * e + (self.dt * self.ki - self.kp) * self.e_1
-        #u_pi = 1/2 * (2 * self.u_1 + (2 * kp + dt * ki) * e + (dt * ki - 2 * kp) * self.e_1)
+        
+        u_pi = self.a1 * self.u_1 + self.b0 * e + self.b1 * self.e_1
         self.e_1 = e
         self.u_1 = u_pi
         
