@@ -115,7 +115,7 @@ class Buck:
             v_in = self.v_in * np.ones(n_cycles)
 
         # State vector
-        x = np.zeros((n, 2))
+        x = np.zeros((n + 1, 2))
         x[0] = self.x[0]
 
         # Control
@@ -162,7 +162,7 @@ class Buck:
             i_f = n_pwm * (i + 1)
 
             # Control law - always between 0 and 1
-            u = ctl.control(x[i_i - 1], v_in[i], v_ref[i])
+            u = ctl.control(x[i_i], v_in[i], v_ref[i])
             self.u[i_i:i_f, 0] = u
 
             # Initial and final time of this cycle
@@ -186,12 +186,12 @@ class Buck:
                 t_span = (t_s, t_f)
                 sol = scipy.integrate.solve_ivp(peode.buck_f, t_span, x0, args=(self.Am, self.Bm, 0), vectorized=True, max_step=max_step, dense_output=True)
                 x0 = (sol.y[0, -1], sol.y[1, -1])
-                t_eval = t[i_s:i_f]
+                t_eval = t[i_s:i_f + 1]
                 x_eval = sol.sol(t_eval)
-                x[i_s:i_f, 0] = x_eval[0, :]
-                x[i_s:i_f, 1] = x_eval[1, :]
+                x[i_s:i_f + 1, 0] = x_eval[0, :]
+                x[i_s:i_f + 1, 1] = x_eval[1, :]
         
-        self.x = x
+        self.x = x[:-1, :]
                 
         _tf = time.time()
         print('Sim time: {:.4f} s\n'.format(_tf - _ti))
