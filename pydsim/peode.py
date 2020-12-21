@@ -131,7 +131,7 @@ class Buck:
             ctlparams['A'] = self.Am
             ctlparams['B'] = self.Bm
             ctlparams['C'] = self.Cm
-            ctlparams['dt'] = n_pwm * self.dt
+            ctlparams['dt'] = t_pwm
             ctl = pydctl.MPC(ctlparams)
             self.ctl = ctl
 
@@ -162,6 +162,7 @@ class Buck:
             i_f = n_pwm * (i + 1)
 
             # Control law - always between 0 and 1
+            #print('x[i_i]: {:.2f}'.format(x[i_i, 1]))
             u = ctl.control(x[i_i], v_in[i], v_ref[i])
             self.u[i_i:i_f, 0] = u
 
@@ -177,10 +178,16 @@ class Buck:
                 t_span = (t_i, t_s)
                 sol = scipy.integrate.solve_ivp(peode.buck_f, t_span, x0, args=(self.Am, self.Bm, v_in[i]), vectorized=True, max_step=max_step, dense_output=True)
                 x0 = (sol.y[0, -1], sol.y[1, -1])
-                t_eval = t[i_i:i_s]
-                x_eval = sol.sol(t_eval)
-                x[i_i:i_s, 0] = x_eval[0, :]
-                x[i_i:i_s, 1] = x_eval[1, :]
+                if i_s != i_f:
+                    t_eval = t[i_i:i_s]
+                    x_eval = sol.sol(t_eval)
+                    x[i_i:i_s, 0] = x_eval[0, :]
+                    x[i_i:i_s, 1] = x_eval[1, :]
+                else:
+                    t_eval = t[i_i:i_s + 1]
+                    x_eval = sol.sol(t_eval)
+                    x[i_i:i_s + 1, 0] = x_eval[0, :]
+                    x[i_i:i_s + 1, 1] = x_eval[1, :]
 
             if i_s != i_f:
                 t_span = (t_s, t_f)

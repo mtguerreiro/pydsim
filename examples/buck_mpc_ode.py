@@ -24,16 +24,12 @@ t_pwm = 1/200e3
 n_pwm = 200
 
 # --- Simulation ---
-buck = pyd.pe.Buck(R, L, C)
+buck = pyd.peode.Buck(R, L, C)
 buck.set_pwm(t_pwm, n_pwm)
 buck.set_sim_time(t_sim)
 
 v_in_p = v_in * np.ones(buck.n_cycles)
 v_in_p[int(buck.n_cycles / 2):] = v_in + v_in_step
-
-buck.sim(v_ref=v_ref, v_in=v_in_p, control='ol')
-t_ol = buck.t
-x_ol = buck.x
 
 ctlparams = {'ki': 200, 'kp': 0}
 buck.set_ctlparams(ctlparams)
@@ -41,20 +37,26 @@ buck.sim(v_ref=v_ref, v_in=v_in_p, control='pi')
 t_pi = buck.t
 x_pi = buck.x
 
+mpc_params = {'alpha': 5, 'beta': 0, 'n_step':3}
+buck.set_ctlparams(mpc_params)
+buck.sim(v_ref=v_ref, v_in=v_in_p, control='mpc')
+t_mp = buck.t
+x_mp = buck.x
+
 # --- Results ---
 plt.figure(figsize=(10,6))
 
 ax = plt.subplot(2,1,1)
-plt.plot(t_ol / 1e-3, x_ol[:, 1], label='ol')
 plt.plot(t_pi / 1e-3, x_pi[:, 1], label='pi')
+plt.plot(t_mp / 1e-3, x_mp[:, 1], label='mpc')
 plt.grid()
 plt.legend()
 plt.xlabel('Time (ms)')
 plt.ylabel('Voltage (V)')
 
 plt.subplot(2,1,2, sharex=ax)
-plt.plot(t_ol / 1e-3, x_ol[:, 0], label='ol')
 plt.plot(t_pi / 1e-3, x_pi[:, 0], label='pi')
+plt.plot(t_mp / 1e-3, x_mp[:, 0], label='mpc')
 plt.grid()
 plt.legend()
 plt.xlabel('Time (ms)')

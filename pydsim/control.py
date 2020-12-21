@@ -122,4 +122,6 @@ class MPC:
 
         u_opt, j_opt = self.opt(x, u, ref, self.n_step)
 
-        return u_opt
+        #print('u_opt: {:}'.format(u_opt))
+
+        return u_opt / u
