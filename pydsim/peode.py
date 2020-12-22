@@ -65,12 +65,13 @@ class Buck:
         self.n_cycles = round(self.t_sim / self.t_pwm)
         self.t = self.dt * np.arange(self.n)
         self.set_vectors()
-        print('\n-----------------------------------')
-        print('Run params')
-        print('-----------------------------------')
-        print('|{:^12}|{:^20}|'.format('Sim points', self.n))
-        print('|{:^12}|{:^20}|'.format('Sim cycles', self.n_cycles))
-        print('-----------------------------------\n')
+        print('\n---------------------------------------------')
+        print('|{:^43}|'.format('Run params'))
+        print('---------------------------------------------')
+        print('|{:^21}|{:^21.4e}|'.format('Max. step size', self.max_step))
+        print('|{:^21}|{:^21}|'.format('Sim cycles', self.n_cycles))
+        print('|{:^21}|{:^21}|'.format('State points', self.n))
+        print('---------------------------------------------\n')
 
 
     def set_v_in(self, v_in):

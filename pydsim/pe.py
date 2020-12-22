@@ -61,8 +61,13 @@ class Buck:
         self.n_cycles = round(self.t_sim / self.t_pwm)
         self.t = self.dt * np.arange(self.n)
         self.set_vectors()
-        print('Sim points: {:}'.format(self.n))
-        print('Sim cycles: {:}'.format(self.n_cycles))
+        print('\n---------------------------------------------')
+        print('|{:^43}|'.format('Run params'))
+        print('---------------------------------------------')
+        print('|{:^21}|{:^21}|'.format('Sim points', self.n))
+        print('|{:^21}|{:^21}|'.format('Sim cycles', self.n_cycles))
+        print('|{:^21}|{:^21.4e}|'.format('dt', self.dt))
+        print('---------------------------------------------\n')
 
     
     def set_model(self, R, L, C):
