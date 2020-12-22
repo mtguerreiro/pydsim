@@ -94,16 +94,26 @@ class MPC:
         return x_u_1, j_u_1
     
     
-    def opt(self, x, u, ref, n_step):
+    def opt(self, x, u, ref, n_step, prints=False):
 
+        if prints is True:
+            print('\nOptimizing..')
+            print('n_step: {:}'.format(n_step))
+            print('Optimizing for u=0')
         x_u_0, j_u_0 = self.pred_cost(x, 0, ref)
+        if prints is True:
+            print('u:0, x = [{:.4f}, {:.4f}], J: {:.4e}'.format(x_u_0[0,0], x_u_0[1,0], j_u_0))
         if n_step != 1:
-            u_0_opt, j_0_opt = self.opt(x_u_0, u, ref, n_step - 1)
+            u_0_opt, j_0_opt = self.opt(x_u_0, u, ref, n_step - 1, prints=prints)
             j_u_0 += j_0_opt
 
+        if prints is True:
+            print('\nOptimizing for u=1')
         x_u_1, j_u_1 = self.pred_cost(x, u, ref)
+        if prints is True:
+            print('u:1, x = [{:.4f}, {:.4f}], J: {:.4e}'.format(x_u_1[0,0], x_u_1[1,0], j_u_1))
         if n_step != 1:
-            u_1_opt, j_1_opt = self.opt(x_u_1, u, ref, n_step - 1)
+            u_1_opt, j_1_opt = self.opt(x_u_1, u, ref, n_step - 1, prints=prints)
             j_u_1 += j_1_opt
 
         if j_u_0 < j_u_1:
@@ -112,6 +122,9 @@ class MPC:
         else:
             j_opt = j_u_1
             u_opt = u
+
+        if prints is True:
+            print('opt u: {:}, J:{:.4e}\n'.format(u_opt, j_opt))
         
         return u_opt, j_opt
 
