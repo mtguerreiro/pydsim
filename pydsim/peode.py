@@ -115,9 +115,10 @@ class Buck:
         elif v_in is None:
             v_in = self.v_in * np.ones(n_cycles)
 
-        # State vector
+        # State and control vector
         x = np.zeros((n + 1, 2))
         x[0] = self.x[0]
+        u = np.zeros((n, 1))
 
         # Control
         if control == 'pi':
@@ -164,15 +165,15 @@ class Buck:
 
             # Control law - always between 0 and 1
             #print('x[i_i]: {:.2f}'.format(x[i_i, 1]))
-            u = ctl.control(x[i_i], v_in[i], v_ref[i])
-            self.u[i_i:i_f, 0] = u
+            _u = ctl.control(x[i_i], v_in[i], v_ref[i])
+            u[i_i:i_f, 0] = _u
 
             # Initial and final time of this cycle
             t_i = t[i_i]
             t_f = t[i_f]
 
             # Switching instant
-            t_s = t_i + t_pwm * u
+            t_s = t_i + t_pwm * _u
             i_s = round(t_s / dt)
 
             if i_s != i_i:
@@ -200,6 +201,7 @@ class Buck:
                 x[i_s:i_f + 1, 1] = x_eval[1, :]
         
         self.x = x[:-1, :]
+        self.u = u
                 
         _tf = time.time()
         print('Sim time: {:.4f} s\n'.format(_tf - _ti))
