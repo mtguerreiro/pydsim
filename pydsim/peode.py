@@ -123,11 +123,18 @@ class Buck:
         # Control
         if control == 'pi':
             ctlparams = self.ctlparams
-            ctlparams['dt'] =  t_pwm
+            ctlparams['dt'] = t_pwm
             ctlini = {'e_1': v_ref[0] - x[0, 1], 'u_1': v_ref[0] / v_in[0]}
             ctl = pydctl.PI(ctlparams)
             #ctl.set_initial_conditions(ctlini)
 
+        elif control == 'pid':
+            ctlparams = self.ctlparams
+            ctlparams['dt'] = t_pwm
+            ctlini = {'e_1': v_ref[0] - x[0, 1], 'u_1': v_ref[0] / v_in[0]}
+            ctl = pydctl.PID(ctlparams)
+            #ctl.set_initial_conditions(ctlini)
+        
         elif control == 'mpc':
             ctlparams = self.ctlparams
             ctlparams['A'] = self.Am
@@ -166,6 +173,10 @@ class Buck:
             # Control law - always between 0 and 1
             #print('x[i_i]: {:.2f}'.format(x[i_i, 1]))
             _u = ctl.control(x[i_i], v_in[i], v_ref[i])
+            if _u < 0:
+                _u = 0
+            elif _u > 1:
+                _u = 1
             u[i_i:i_f, 0] = _u
 
             # Initial and final time of this cycle
@@ -182,6 +193,7 @@ class Buck:
                 x0 = (sol.y[0, -1], sol.y[1, -1])
                 if i_s != i_f:
                     t_eval = t[i_i:i_s]
+                    #print(i_i, '\t', i_s, '\t', t_eval)
                     x_eval = sol.sol(t_eval)
                     x[i_i:i_s, 0] = x_eval[0, :]
                     x[i_i:i_s, 1] = x_eval[1, :]

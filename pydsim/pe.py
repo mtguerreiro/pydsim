@@ -168,7 +168,14 @@ class Buck:
             ctlini = {'e_1': v_ref[0] - x[0, 1], 'u_1': v_ref[0] / v_in[0]}
             ctl = pydctl.PI(ctlparams)
             #ctl.set_initial_conditions(ctlini)
-
+            
+        elif control == 'pid':
+            ctlparams = self.ctlparams
+            ctlparams['dt'] =  self.t_pwm
+            ctlini = {'e_1': v_ref[0] - x[0, 1], 'u_1': v_ref[0] / v_in[0]}
+            ctl = pydctl.PID(ctlparams)
+            #ctl.set_initial_conditions(ctlini)
+            
         elif control == 'mpc':
             ctlparams = self.ctlparams
             ctlparams['A'] = self.Am

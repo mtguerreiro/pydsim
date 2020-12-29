@@ -25,10 +25,14 @@ class PI:
         self.a1 = 1
         self.b0 = 1 / 2 * (2 * self.kp + self.dt * self.ki)
         self.b1 = 1 / 2 * (self.dt * self.ki - 2 * self.kp)
-
+        #self.a1 = 1
+        #self.b0 = 1 / 2 * (2 * self.kp + self.dt * self.ki)
+        #self.b1 = 1 / 2 * (self.dt * self.ki)
+        
         #self.a1 = 1
         #self.b0 = self.kp
         #self.b1 = (self.dt * self.ki - self.kp)
+        
 
     def set_initial_conditions(self, ini_conditions):
         self.u_1 = ini_conditions['u_1']
@@ -45,6 +49,59 @@ class PI:
         
         return u_pi
 
+
+class PID:
+
+    def __init__(self, pid_params):
+
+        #self.kp = pi_params['kp']
+        #self.ki = pi_params['ki']
+        #self.dt = pi_params['dt']
+
+        self.set_params(pid_params)
+
+        self.e_1 = 0
+        self.e_2 = 0
+        self.u_1 = 0
+        self.u_2 = 0
+        
+
+    def set_params(self, pid_params):
+        self.kp = pid_params['kp']
+        self.ki = pid_params['ki']
+        self.kd = pid_params['kd']
+        self.N = pid_params['N']
+        self.dt = pid_params['dt']
+
+        a = self.kp + self.N * self.kd
+        b = self.ki + self.N * self.kp
+        c = self.N * self.ki
+
+        self.a1 = -(self.dt * self.N - 2)
+        self.a2 = -(1 - self.dt * self.N)
+        self.b0 = a
+        self.b1 = self.dt * b - 2 * a
+        self.b2 = a**2 + self.dt**2 * c - self.dt * b
+        #self.a1 = 1
+        #self.b0 = 1 / 2 * (2 * self.kp + self.dt * self.ki)
+        #self.b1 = 1 / 2 * (self.dt * self.ki - 2 * self.kp)
+
+
+    def control(self, x, u, ref):
+        
+        e = (ref - x[1]) / u
+        
+        u_pid = self.a1 * self.u_1 + self.a2 * self.u_2 + self.b0 * e + self.b1 * self.e_1 + self.b2 * self.e_2
+        self.e_2 = self.e_1
+        self.e_1 = e
+        self.u_2 = self.u_1
+        self.u_1 = u_pid
+
+        #print(u_pid, self.u_1, self.u_2, e, self.e_1, self.e_2)
+        
+        return u_pid
+
+        
 class OL:
 
     def __init__(self, ol_params):
