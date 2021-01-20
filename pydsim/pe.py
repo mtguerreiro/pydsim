@@ -160,6 +160,7 @@ class Buck:
         x = np.zeros((n + 1, 2))
         x[0] = self.x[0]
         xfilt = np.zeros((n + 1, 2))
+        u = np.zeros((n, 1))
 
         # Control
         if control == 'pi':
@@ -219,13 +220,18 @@ class Buck:
 
             # Computes control law
             if self.filter is None:
-                u = ctl.control(x[ii], v_in[i], v_ref[i])
+                _u = ctl.control(x[ii], v_in[i], v_ref[i])
             else:
-                u = ctl.control(xfilt[ii], v_in[i], v_ref[i])
-            self.u[i_s:i_e] = u
-
+                _u = ctl.control(xfilt[ii], v_in[i], v_ref[i])
+            #self.u[i_s:i_e] = u
+            if _u < 0:
+                _u = 0
+            elif _u > 1:
+                _u = 1
+            u[i_s:i_e, 0] = _u
+            
             u_s[:] = 0
-            u_s[u_t < u, 0] = v_in[i]
+            u_s[u_t < _u, 0] = v_in[i]
 
             # System's response for one switching cycle - with numba
             pydnb.sim(x[i_s:i_e, :], self.Ad, self.Bd, u_s, n_pwm)
@@ -248,6 +254,7 @@ class Buck:
         self.x = x[:-1, :]
         self.xfilt = xfilt[:-1, :]
         self.pwm = pwm
+        self.u = u
                 
         _tf = time.time()
         print('Sim time: {:.4f} s\n'.format(_tf - _ti))
