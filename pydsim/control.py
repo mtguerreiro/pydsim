@@ -132,6 +132,11 @@ class MPC:
         self.alpha = mpc_params['alpha']
         self.beta = mpc_params['beta']
 
+        try:
+            self.il_max = mpc_params['il_max']
+        except:
+            self.il_max = np.inf
+
         self.n_step = mpc_params['n_step']
 
         self.set_model(self.A, self.B, self.C, self.dt)
@@ -146,7 +151,10 @@ class MPC:
     def pred_cost(self, x, u, ref):
         
         x_u_1 = self.Ad @ x + self.Bd * u
-        j_u_1 = self.alpha * (ref - x_u_1[1, 0]) ** 2 + self.beta * u ** 2
+        if np.abs(x_u_1[0, 0]) >= self.il_max:
+            j_u_1 = np.inf
+        else:
+            j_u_1 = self.alpha * (ref - x_u_1[1, 0]) ** 2# + self.beta * u ** 2
 
         return x_u_1, j_u_1
     
