@@ -31,6 +31,8 @@ class Buck:
         self.filter = None
         #self.filter = self.init_filter()
 
+        self.x_ini = np.zeros((1, 2))
+
     
     def init_params(self):
         self.dt = None
@@ -101,8 +103,13 @@ class Buck:
 
 
     def set_initial_conditions(self, il, vc):
-        self.x[0, 0] = il
-        self.x[0, 1] = vc
+        #self.x_ini[:] = 0
+        self.x_ini[0, 0] = il
+        self.x_ini[0, 1] = vc
+
+
+    def set_ctl_initial_conditions(self, ctl_params):
+        self.ctl_ini = ctl_params
         
     
     def set_filter(self, fc):
@@ -158,7 +165,7 @@ class Buck:
 
         # Vectors
         x = np.zeros((n + 1, 2))
-        x[0] = self.x[0]
+        x[0] = self.x_ini[0]
         xfilt = np.zeros((n + 1, 2))
         u = np.zeros((n, 1))
 
@@ -173,9 +180,10 @@ class Buck:
         elif control == 'pid':
             ctlparams = self.ctlparams
             ctlparams['dt'] =  self.t_pwm
-            ctlini = {'e_1': v_ref[0] - x[0, 1], 'u_1': v_ref[0] / v_in[0]}
+            #ctlini = {'e_1': v_ref[0] - x[0, 1], 'u_1': v_ref[0] / v_in[0]}
             ctl = pydctl.PID(ctlparams)
-            #ctl.set_initial_conditions(ctlini)
+            if self.x_ini[0, 0] != 0 and self.x_ini[0, 1] != 0:
+                ctl.set_initial_conditions(u_1=v_ref[0] / v_in[0], u_2=v_ref[0] / v_in[0])
             
         elif control == 'mpc':
             ctlparams = self.ctlparams
@@ -235,8 +243,8 @@ class Buck:
 
             # System's response for one switching cycle - with numba
             pydnb.sim(x[i_s:i_e, :], self.Ad, self.Bd, u_s, n_pwm)
-            #x[i_s:i_e, 0] = pynoise.awgn(x[i_s:i_e, 0], 50)
-            #x[i_s:i_e, 1] = pynoise.awgn(x[i_s:i_e, 1], 50)
+            #x[i_s:i_e, 0] = pynoise.awgn(x[i_s:i_e, 0], 30)
+            #x[i_s:i_e, 1] = pynoise.awgn(x[i_s:i_e, 1], 30)
             
             # Filters the voltage. Remember that the system's response for one
             # switching cycle gives us the system's output at i_e + 1 (note

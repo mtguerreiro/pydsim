@@ -73,25 +73,50 @@ class PID:
         self.N = pid_params['N']
         self.dt = pid_params['dt']
 
-        a = self.kp + self.N * self.kd
-        b = self.ki + self.N * self.kp
-        c = self.N * self.ki
+        kp = self.kp
+        ki = self.ki
+        kd = self.kd
+        N = self.N
+        T = 2 / self.dt
 
-        self.a1 = -(self.dt * self.N - 2)
-        self.a2 = -(1 - self.dt * self.N)
-        self.b0 = a
-        self.b1 = self.dt * b - 2 * a
-        self.b2 = a**2 + self.dt**2 * c - self.dt * b
-        #self.a1 = 1
-        #self.b0 = 1 / 2 * (2 * self.kp + self.dt * self.ki)
-        #self.b1 = 1 / 2 * (self.dt * self.ki - 2 * self.kp)
+        self.a0 = T**2 + T * N
+        self.a1 = -(-2 * T**2) / self.a0
+        self.a2 = -(T**2 - T * N) / self.a0
+        
+        self.b0 = (T**2 * (kp + N*kd) + T * (ki + N*kp) + N*ki) / self.a0
+        self.b1 = (2 * (N + ki - T**2 * (kp + N*kd))) / self.a0
+        self.b2 = (T**2 * (kp + N*kd) - T * (ki + N*kp) + N*ki) / self.a0
+        
+        #a = self.kp + self.N * self.kd
+        #b = self.ki + self.N * self.kp
+        #c = self.N * self.ki
+
+        #self.a1 = -(self.dt * self.N - 2)
+        #self.a2 = -(1 - self.dt * self.N)
+        #self.b0 = a
+        #self.b1 = self.dt * b - 2 * a
+        #self.b2 = a**2 + self.dt**2 * c - self.dt * b
 
 
+    def set_initial_conditions(self, u_1=0, u_2=0, e=0, e_1=0, e_2=0):
+        self.u_1 = u_1
+        self.u_2 = u_2
+        self.e = e
+        self.e_1 = e_1
+        self.e_2 = e_2
+
+    
     def control(self, x, u, ref):
         
         e = (ref - x[1]) / u
         
         u_pid = self.a1 * self.u_1 + self.a2 * self.u_2 + self.b0 * e + self.b1 * self.e_1 + self.b2 * self.e_2
+
+        #if u_pid > 1:
+        #    u_pid = 1
+        #elif u_pid < 0:
+        #    u_pid = 0
+
         self.e_2 = self.e_1
         self.e_1 = e
         self.u_2 = self.u_1

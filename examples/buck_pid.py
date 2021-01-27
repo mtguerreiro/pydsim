@@ -38,7 +38,7 @@ v_ref_p = v_ref * np.ones(buck.n_cycles)
 ##t_ol = buck.t
 ##x_ol = buck.x
 
-ctlparams = {'ki': 200, 'kp':-50e-6, 'kd':-0.5e-7, 'N':300}
+ctlparams = {'ki': 200, 'kp':0, 'kd':0.000001, 'N':100}
 buck.set_ctlparams(ctlparams)
 buck.sim(v_ref=v_ref_p, v_in=v_in_p, control='pid')
 t_pi = buck.t

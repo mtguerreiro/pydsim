@@ -33,6 +33,8 @@ class Buck:
                   [0]])
         self.Cm = np.array([0, 1])
 
+        self.x_ini = np.zeros((1, 2))
+
     
     def init_params(self):
         self.t_pwm = None
@@ -79,8 +81,8 @@ class Buck:
 
 
     def set_initial_conditions(self, il, vc):
-        self.x[0, 0] = il
-        self.x[0, 1] = vc
+        self.x_ini[0, 0] = il
+        self.x_ini[0, 1] = vc
 
 
     def set_ctlparams(self, params):
@@ -117,7 +119,7 @@ class Buck:
 
         # State and control vector
         x = np.zeros((n + 1, 2))
-        x[0] = self.x[0]
+        x[0] = self.x_ini[0]
         u = np.zeros((n, 1))
 
         # Control
@@ -133,7 +135,8 @@ class Buck:
             ctlparams['dt'] = t_pwm
             ctlini = {'e_1': v_ref[0] - x[0, 1], 'u_1': v_ref[0] / v_in[0]}
             ctl = pydctl.PID(ctlparams)
-            #ctl.set_initial_conditions(ctlini)
+            if self.x_ini[0, 0] != 0 and self.x_ini[0, 1] != 0:
+                ctl.set_initial_conditions(u_1=v_ref[0] / v_in[0], u_2=v_ref[0] / v_in[0])
         
         elif control == 'mpc':
             ctlparams = self.ctlparams
@@ -162,7 +165,8 @@ class Buck:
         #v_ref_a = v_ref * np.ones((n_cycles, 1))
     
         _ti = time.time()
-        x0 = (0, 0)
+        #print(self.x_ini)
+        x0 = (self.x_ini[0, 0], self.x_ini[0, 1])
         # Loops for each switching cycle
         for i in range(n_cycles):
             #print(i)
