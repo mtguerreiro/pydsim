@@ -72,6 +72,7 @@ class PID:
         self.kd = pid_params['kd']
         self.N = pid_params['N']
         self.dt = pid_params['dt']
+        self.sat = pid_params['sat']
 
         kp = self.kp
         ki = self.ki
@@ -112,10 +113,11 @@ class PID:
         
         u_pid = self.a1 * self.u_1 + self.a2 * self.u_2 + self.b0 * e + self.b1 * self.e_1 + self.b2 * self.e_2
 
-        #if u_pid > 1:
-        #    u_pid = 1
-        #elif u_pid < 0:
-        #    u_pid = 0
+        if self.sat is True:
+            if u_pid > 1:
+                u_pid = 1
+            elif u_pid < 0:
+                u_pid = 0
 
         self.e_2 = self.e_1
         self.e_1 = e
