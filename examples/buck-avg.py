@@ -12,16 +12,10 @@ C = 560e-6
 
 # Input and reference voltage
 v_in = 1
-v_ref = 0.5
+v_ref = 0.6
 
 # Sim time
-t_sim = 30e-3
-
-# PWM period
-t_pwm = 1/200e3
-
-# Number of points per cycle
-n_pwm = 200
+t_sim = 20e-3
 
 # --- Simulation ---
 buck = pyd.peode.Buck(R, L, C)
@@ -34,24 +28,55 @@ buck = pyd.peode.Buck(R, L, C)
 ##t = buck.t
 ##x = buck.x
 
+# Plant
 Am = buck.Am
 Bm = buck.Bm
-Cm = buck.Cm
+Cm = np.array([buck.Cm])
+xm_i = [0, 0]
 
-Aa = np.zeros([3, 3])
-Aa[:2,:2] = Am
-Aa[:2,2] = 50*Bm[:, 0]
-Aa[2,:2] = -Cm
+### Controller
+##Ki = 4000
+##Kp = 0.05
+##N = 1000
+##Kd = 0.5
+##
+##Ae = np.array([[0, 1], [0, -N]])
+##Be = np.array([[0], [1]])
+##Ce = np.array([[N*Ki, Ki - N**2*Kd]])
+##De = Kp + N*Kd
+##xc_i = [0, 0]
 
-Ba = np.zeros([3, 1])
-Ba[-1, 0] = 1
+Ki = 0
+Kp = 1
+Ae = np.array([[0]])
+Be = np.array([[1]])
+Ce = np.array([[Ki]])
+De = np.array([[Kp]])
+xc_i = [0]
+
+r = v_ref
+
+# Aug model
+n_p = Am.shape[0]
+n_c = Ae.shape[0]
+
+Aa = np.zeros([n_p + n_c, n_p + n_c])
+Aa[:n_p,:n_p] = Am - Bm @ Cm * De
+Aa[:n_p, n_p:] = Bm @ Ce
+Aa[n_p:, :n_p] = -Be @ Cm
+Aa[n_p:, n_p:] = Ae
+
+Ba = np.zeros([n_p + n_c, 1])
+Ba[:n_p, :] = Bm * De
+Ba[n_p:, :] = Be
+xm_i.extend(xc_i)
 
 def f_x(t, x):
     #x_dot = Am @ x + Bm @ u
-    x_dot = Aa @ x + Ba * 0.5
+    x_dot = Aa @ x + Ba * r
     return x_dot
 
-sol = scipy.integrate.solve_ivp(f_x, [0, 30e-3], [0, 0, 0], max_step=1e-6, vectorized=True)
+sol = scipy.integrate.solve_ivp(f_x, [0, t_sim], xm_i, max_step=1e-6, vectorized=True)
 
 
 # --- Results ---
