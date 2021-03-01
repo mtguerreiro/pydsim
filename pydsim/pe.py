@@ -194,6 +194,15 @@ class Buck:
             ctl = pydctl.MPC(ctlparams)
             self.ctl = ctl
 
+        elif control == 'dmpc':
+            ctlparams = self.ctlparams
+            ctlparams['A'] = self.Am
+            ctlparams['B'] = self.Bm
+            ctlparams['C'] = self.Cm
+            ctlparams['dt'] = n_pwm * self.dt
+            ctl = pydctl.DMPC(ctlparams)
+            self.ctl = ctl
+            
         else:
             ctlparams = {'dc': v_ref[0] / v_in[0]}
             ctlini = {'dc': v_ref[0] / v_in[0]}
@@ -232,10 +241,10 @@ class Buck:
             else:
                 _u = ctl.control(xfilt[ii], v_in[i], v_ref[i])
             #self.u[i_s:i_e] = u
-            if _u < 0:
-                _u = 0
-            elif _u > 1:
-                _u = 1
+            #if _u < 0:
+            #    _u = 0
+            #elif _u > 1:
+            #    _u = 1
             u[i_s:i_e, 0] = _u
             
             u_s[:] = 0

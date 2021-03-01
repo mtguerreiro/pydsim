@@ -1,6 +1,7 @@
 import math
 import scipy
 import numpy as np
+import pyctl as ctl
 import pydsim.utils as pydutils
 
 class PI:
@@ -217,3 +218,45 @@ class MPC:
         #print('u_opt: {:}'.format(u_opt))
 
         return u_opt / u
+
+class DMPC:
+
+    def __init__(self, dmpc_params):
+        Am = dmpc_params['A']
+        Bm = dmpc_params['B'] * 10
+        Cm = dmpc_params['C']
+        dt = dmpc_params['dt']
+        self.Am = Am; self.Bm = Bm; self.Cm = Cm; self.dt = dt
+
+        n_p = dmpc_params['n_p']
+        n_c = dmpc_params['n_c']
+        r_w = dmpc_params['r_w']
+        n_p = n_p; self.n_c = n_c; self.r_w = r_w
+
+        Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((Am, Bm, Cm, 0), dt, method='bilinear')
+        self.Ad = Ad; self.Bd = Bd; self.Cd = Cd
+
+        self.dmpc_sys = ctl.mpc.System(Ad, Bd, Cd, n_p=n_p, n_c=n_c, r_w=r_w)
+        Ky, Kmpc = self.dmpc_sys.opt_cl_gains()
+        Kx = Kmpc[0, :-1]
+
+        self.K_y = Ky
+        self.K_x = Kx
+
+        self.x_1 = np.array([0, 0])
+        self.u_1 = 0
+
+
+    def control(self, x, u, ref):
+
+        dx = (x - self.x_1)
+        du = -self.K_y * (x[1] - ref) + -self.K_x @ dx
+        u_dmpc = du[0] + self.u_1
+
+        self.x_1 = x
+        self.u_1 = u_dmpc
+
+        #print(du)
+        #print(u_dmpc)
+
+        return u_dmpc
