@@ -223,7 +223,7 @@ class DMPC:
 
     def __init__(self, dmpc_params):
         Am = dmpc_params['A']
-        Bm = dmpc_params['B'] * 10
+        Bm = dmpc_params['B'] #* 10
         Cm = dmpc_params['C']
         dt = dmpc_params['dt']
         self.Am = Am; self.Bm = Bm; self.Cm = Cm; self.dt = dt
@@ -240,8 +240,8 @@ class DMPC:
         Ky, Kmpc = self.dmpc_sys.opt_cl_gains()
         Kx = Kmpc[0, :-1]
 
-        self.K_y = Ky
-        self.K_x = Kx
+        self.K_y = Ky #/ 10
+        self.K_x = Kx #/ 10
 
         self.x_1 = np.array([0, 0])
         self.u_1 = 0
@@ -250,7 +250,7 @@ class DMPC:
     def control(self, x, u, ref):
 
         dx = (x - self.x_1)
-        du = -self.K_y * (x[1] - ref) + -self.K_x @ dx
+        du = -self.K_y * (x[1] - ref) / u + -self.K_x @ dx / u
         u_dmpc = du[0] + self.u_1
 
         self.x_1 = x
