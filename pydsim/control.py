@@ -160,6 +160,8 @@ class MPC:
         self.alpha = mpc_params['alpha']
         self.beta = mpc_params['beta']
 
+        self.ref = mpc_params['ref']
+
         try:
             self.il_max = mpc_params['il_max']
         except:
@@ -168,6 +170,8 @@ class MPC:
         self.n_step = mpc_params['n_step']
 
         self.set_model(self.A, self.B, self.C, self.dt)
+
+        self.__i = 0
 
 
     def set_model(self, A, B, C, dt):
@@ -189,14 +193,15 @@ class MPC:
     
     def opt(self, x, u, ref, n_step):
 
-        x_u_0, j_u_0 = self.pred_cost(x, 0, ref)
+        #print(ref)
+        x_u_0, j_u_0 = self.pred_cost(x, 0, ref[0])
         if n_step != 1:
-            u_0_opt, j_0_opt = self.opt(x_u_0, u, ref, n_step - 1)
+            u_0_opt, j_0_opt = self.opt(x_u_0, u, ref[1:], n_step - 1)
             j_u_0 += j_0_opt
 
-        x_u_1, j_u_1 = self.pred_cost(x, u, ref)
+        x_u_1, j_u_1 = self.pred_cost(x, u, ref[0])
         if n_step != 1:
-            u_1_opt, j_1_opt = self.opt(x_u_1, u, ref, n_step - 1)
+            u_1_opt, j_1_opt = self.opt(x_u_1, u, ref[1:], n_step - 1)
             j_u_1 += j_1_opt
 
         if j_u_0 < j_u_1:
@@ -213,9 +218,15 @@ class MPC:
 
         x = x.reshape(-1, 1)
 
+        i_i = self.__i
+        i_f = self.__i + self.n_step + 1
+        ref = self.ref[i_i:i_f]
+
         u_opt, j_opt = self.opt(x, u, ref, self.n_step)
 
         #print('u_opt: {:}'.format(u_opt))
+
+        self.__i += 1
 
         return u_opt / u
 
