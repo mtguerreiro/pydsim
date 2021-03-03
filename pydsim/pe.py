@@ -231,7 +231,7 @@ class Buck:
         _ti = time.time()
         
         # Loops for each switching cycle
-        for i in range(n_cycles - 2):
+        for i in range(n_cycles):
 
             # Indexes for the start and end of this cycle
             i_s = ii

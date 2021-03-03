@@ -160,7 +160,13 @@ class MPC:
         self.alpha = mpc_params['alpha']
         self.beta = mpc_params['beta']
 
-        self.ref = mpc_params['ref']
+        n_ref = mpc_params['ref'].shape[0]
+        ref = np.zeros(n_ref + mpc_params['n_step'])
+        ref[:n_ref] = mpc_params['ref']
+        ref[n_ref:] = mpc_params['ref'][-1]
+        self.ref = ref
+        
+        #self.ref = mpc_params['ref']
 
         try:
             self.il_max = mpc_params['il_max']
@@ -219,7 +225,7 @@ class MPC:
         x = x.reshape(-1, 1)
 
         i_i = self.__i
-        i_f = self.__i + self.n_step + 1
+        i_f = self.__i + self.n_step
         ref = self.ref[i_i:i_f]
 
         u_opt, j_opt = self.opt(x, u, ref, self.n_step)
