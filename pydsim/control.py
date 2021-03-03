@@ -244,7 +244,7 @@ class DMPC:
 
     def __init__(self, dmpc_params):
         Am = dmpc_params['A']
-        Bm = dmpc_params['B'] #* 10
+        Bm = dmpc_params['B']
         Cm = dmpc_params['C']
         dt = dmpc_params['dt']
         self.Am = Am; self.Bm = Bm; self.Cm = Cm; self.dt = dt
@@ -252,17 +252,40 @@ class DMPC:
         n_p = dmpc_params['n_p']
         n_c = dmpc_params['n_c']
         r_w = dmpc_params['r_w']
-        n_p = n_p; self.n_c = n_c; self.r_w = r_w
+        self.n_p = n_p; self.n_c = n_c; self.r_w = r_w
 
         Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((Am, Bm, Cm, 0), dt, method='bilinear')
         self.Ad = Ad; self.Bd = Bd; self.Cd = Cd
 
-        self.dmpc_sys = ctl.mpc.System(Ad, Bd, Cd, n_p=n_p, n_c=n_c, r_w=r_w)
-        Ky, Kmpc = self.dmpc_sys.opt_cl_gains()
-        Kx = Kmpc[0, :-1]
+        self.__i = 0
 
-        self.K_y = Ky #/ 10
-        self.K_x = Kx #/ 10
+        try:
+            n_ref = dmpc_params['ref'].shape[0]
+            ref = np.zeros(n_ref + n_p)
+            ref[:n_ref] = dmpc_params['ref']
+            ref[n_ref:] = dmpc_params['ref'][-1]           
+            self.ref = ref
+        except:
+            ref = None
+            self.ref = ref
+
+        if ref is None:
+            self.dmpc_sys = ctl.mpc.System(Ad, Bd, Cd, n_p=n_p, n_c=n_c, r_w=r_w)
+            Ky, Kmpc = self.dmpc_sys.opt_cl_gains()
+            Kx = Kmpc[0, :-1]
+            self.K_y = Ky
+            self.K_x = Kx
+        else:
+            dmpc_sys = ctl.mpc.System(Ad, Bd, Cd, n_p=n_p, n_c=n_c, r_w=r_w)
+            self.dmpc_sys = dmpc_sys
+            F, Phi = ctl.mpc.opt_matrices(dmpc_sys.A, dmpc_sys.B, dmpc_sys.C, n_p, n_c)
+            R_bar = r_w * np.eye(n_c)
+            M = np.linalg.inv(Phi.T @ Phi + R_bar) @ Phi.T
+            self.M = M
+            Ky, Kmpc = self.dmpc_sys.opt_cl_gains()
+            Kx = Kmpc[0, :-1]
+            self.K_x = Kx
+            self.K_y = Ky
 
         self.x_1 = np.array([0, 0])
         self.u_1 = 0
@@ -270,14 +293,22 @@ class DMPC:
 
     def control(self, x, u, ref):
 
-        dx = (x - self.x_1)
-        du = -self.K_y * (x[1] - ref) / u + -self.K_x @ dx / u
-        u_dmpc = du[0] + self.u_1
+        if self.ref is None:
+            dx = (x - self.x_1)
+            du = -self.K_y * (x[1] - ref) / u + -self.K_x @ dx / u
+            u_dmpc = du[0] + self.u_1
+        else:
+            i_i = self.__i
+            i_f = self.__i + self.n_p
+            Rs_bar = np.ones((self.n_p, 1))
+            Rs_bar[:, 0] = self.ref[i_i:i_f]
+            K_r = np.array([(self.M @ Rs_bar)[0]]) / u
+            dx = (x - self.x_1)
+            du = K_r + -self.K_y * x[1] / u + -self.K_x @ dx / u
+            u_dmpc = du[0] + self.u_1
+            self.__i += 1
 
         self.x_1 = x
         self.u_1 = u_dmpc
-
-        #print(du)
-        #print(u_dmpc)
 
         return u_dmpc

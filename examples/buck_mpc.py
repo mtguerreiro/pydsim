@@ -11,7 +11,7 @@ C = 560e-6
 
 # Input and reference voltage
 v_in = 10
-v_in_step = -1
+v_in_step = -3
 v_ref = 5
 
 # Sim time
