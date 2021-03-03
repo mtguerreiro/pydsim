@@ -281,11 +281,11 @@ class DMPC:
             F, Phi = ctl.mpc.opt_matrices(dmpc_sys.A, dmpc_sys.B, dmpc_sys.C, n_p, n_c)
             R_bar = r_w * np.eye(n_c)
             M = np.linalg.inv(Phi.T @ Phi + R_bar) @ Phi.T
-            self.M = M
+            self.M = M[0, :]
             Ky, Kmpc = self.dmpc_sys.opt_cl_gains()
             Kx = Kmpc[0, :-1]
             self.K_x = Kx
-            self.K_y = Ky
+            self.K_y = Kmpc[0, -1]
 
         self.x_1 = np.array([0, 0])
         self.u_1 = 0
@@ -302,7 +302,7 @@ class DMPC:
             i_f = self.__i + self.n_p
             Rs_bar = np.ones((self.n_p, 1))
             Rs_bar[:, 0] = self.ref[i_i:i_f]
-            K_r = np.array([(self.M @ Rs_bar)[0]]) / u
+            K_r = (self.M @ Rs_bar) / u
             dx = (x - self.x_1)
             du = K_r + -self.K_y * x[1] / u + -self.K_x @ dx / u
             u_dmpc = du[0] + self.u_1
