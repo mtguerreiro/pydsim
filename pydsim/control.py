@@ -160,11 +160,14 @@ class MPC:
         self.alpha = mpc_params['alpha']
         self.beta = mpc_params['beta']
 
-        n_ref = mpc_params['ref'].shape[0]
-        ref = np.zeros(n_ref + mpc_params['n_step'])
-        ref[:n_ref] = mpc_params['ref']
-        ref[n_ref:] = mpc_params['ref'][-1]
-        self.ref = ref
+        try:
+            n_ref = mpc_params['ref'].shape[0]
+            ref = np.zeros(n_ref + mpc_params['n_step'])
+            ref[:n_ref] = mpc_params['ref']
+            ref[n_ref:] = mpc_params['ref'][-1]
+            self.ref = ref
+        except:
+            self.ref = None
         
         #self.ref = mpc_params['ref']
 
@@ -198,8 +201,7 @@ class MPC:
     
     
     def opt(self, x, u, ref, n_step):
-
-        #print(ref)
+        
         x_u_0, j_u_0 = self.pred_cost(x, 0, ref[0])
         if n_step != 1:
             u_0_opt, j_0_opt = self.opt(x_u_0, u, ref[1:], n_step - 1)
@@ -224,16 +226,18 @@ class MPC:
 
         x = x.reshape(-1, 1)
 
-        i_i = self.__i
-        i_f = self.__i + self.n_step
-        ref = self.ref[i_i:i_f]
+        if self.ref is None:
+            vref = np.zeros(self.n_step)
+            vref[:] = ref
+        else:
+            i_i = self.__i
+            i_f = self.__i + self.n_step
+            vref = self.ref[i_i:i_f]
+            self.__i += 1
 
-        u_opt, j_opt = self.opt(x, u, ref, self.n_step)
-
-        #print('u_opt: {:}'.format(u_opt))
-
-        self.__i += 1
-
+        #print(vref)
+        u_opt, j_opt = self.opt(x, u, vref, self.n_step)
+        
         return u_opt / u
 
 class DMPC:
