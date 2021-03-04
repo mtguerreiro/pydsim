@@ -320,29 +320,50 @@ class SFB:
         Am = sfb_params['A']
         Bm = sfb_params['B']
         Cm = sfb_params['C']
-        #dt = dmpc_params['dt']
-        self.Am = Am; self.Bm = Bm; self.Cm = Cm#; self.dt = dt
+        dt = sfb_params['dt']
+        self.Am = Am; self.Bm = Bm; self.Cm = Cm; self.dt = dt
 
+        # Aug model
+        Aa = np.zeros((3,3))
+        Ba = np.zeros((3,1))
+
+        Aa[:2, :2] = Am
+        Aa[2, :2] = Cm
+        Ba[:2, 0] = Bm[:, 0]
+        self.Aa = Aa; self.Ba = Ba
+
+        # Poles
         p1 = sfb_params['p1']
         p2 = sfb_params['p2']
-        self.p1 = p1; self.p2 = p2
+        p3 = sfb_params['p3']
+        self.p1 = p1; self.p2 = p2; self.p3 = p3
 
-        c_eq = np.polymul([1, -p1], [1, -p2]).real
+        c_eq = np.polymul(np.polymul([1, -p1], [1, -p2]).real, [1, -p3]).real
 
         # Ackermann
-        Mc = np.zeros((2,2))
-        Mc[:, 0] = Bm[:, 0]
-        Mc[:, 1] = (Am @ Bm)[:, 0]
+        Mc = np.zeros((3,3))
+        Mc[:, 0] = Ba[:, 0]
+        Mc[:, 1] = (Aa @ Ba)[:, 0]
+        Mc[:, 2] = (Aa @ Aa @ Ba)[:, 0]
 
-        Phi_d = c_eq[0] * Am @ Am + c_eq[1] * Am + c_eq[2] * np.eye(2)
+        Phi_d = c_eq[0] * Aa @ Aa @ Aa + c_eq[1] * Aa @ Aa + c_eq[2] * Aa + c_eq[3] * np.eye(3)
 
-        Kx = np.array([[0, 1]]) @ np.linalg.inv(Mc) @ Phi_d
+        Kx = np.array([[0, 0, 1]]) @ np.linalg.inv(Mc) @ Phi_d
         
-        self.K_x = Kx
+        self.K_x = Kx[0, :-1]
+        self.K_z = Kx[0, -1]
+
+        self.e_1 = 0
+        self.zeta_1 = 0
 
 
     def control(self, x, u, ref):
+        e = (ref - x[1]) / u
+        zeta = self.zeta_1 + self.dt / 2 * (e + self.e_1)
+        
+        u_sfb = (ref - self.K_x @ x) / u + self.K_z * zeta
 
-        u_sfb = (ref - self.K_x @ x) / u
+        self.zeta_1 = zeta
+        self.e_1 = e
         
         return u_sfb

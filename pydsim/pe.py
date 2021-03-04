@@ -210,6 +210,7 @@ class Buck:
             ctlparams['A'] = self.Am
             ctlparams['B'] = self.Bm
             ctlparams['C'] = self.Cm
+            ctlparams['dt'] = n_pwm * self.dt
             ctl = pydctl.SFB(ctlparams)
             self.ctl = ctl
             
