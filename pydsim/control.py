@@ -361,7 +361,7 @@ class SFB:
         e = (ref - x[1]) / u
         zeta = self.zeta_1 + self.dt / 2 * (e + self.e_1)
         
-        u_sfb = (ref - self.K_x @ x) / u + self.K_z * zeta
+        u_sfb = -self.K_x @ x / u + self.K_z * zeta
 
         self.zeta_1 = zeta
         self.e_1 = e
