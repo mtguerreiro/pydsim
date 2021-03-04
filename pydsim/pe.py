@@ -204,6 +204,14 @@ class Buck:
             #ctl.u_1 = 0.5
             #ctl.x_1 = self.x_ini[0]
             self.ctl = ctl
+
+        elif control == 'sfb':
+            ctlparams = self.ctlparams
+            ctlparams['A'] = self.Am
+            ctlparams['B'] = self.Bm
+            ctlparams['C'] = self.Cm
+            ctl = pydctl.SFB(ctlparams)
+            self.ctl = ctl
             
         else:
             ctlparams = {'dc': v_ref[0] / v_in[0]}

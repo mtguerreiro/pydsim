@@ -312,3 +312,37 @@ class DMPC:
         self.u_1 = u_dmpc
 
         return u_dmpc
+
+
+class SFB:
+    
+    def __init__(self, sfb_params):
+        Am = sfb_params['A']
+        Bm = sfb_params['B']
+        Cm = sfb_params['C']
+        #dt = dmpc_params['dt']
+        self.Am = Am; self.Bm = Bm; self.Cm = Cm#; self.dt = dt
+
+        p1 = sfb_params['p1']
+        p2 = sfb_params['p2']
+        self.p1 = p1; self.p2 = p2
+
+        c_eq = np.polymul([1, -p1], [1, -p2]).real
+
+        # Ackermann
+        Mc = np.zeros((2,2))
+        Mc[:, 0] = Bm[:, 0]
+        Mc[:, 1] = (Am @ Bm)[:, 0]
+
+        Phi_d = c_eq[0] * Am @ Am + c_eq[1] * Am + c_eq[2] * np.eye(2)
+
+        Kx = np.array([[0, 1]]) @ np.linalg.inv(Mc) @ Phi_d
+        
+        self.K_x = Kx
+
+
+    def control(self, x, u, ref):
+
+        u_sfb = (ref - self.K_x @ x) / u
+        
+        return u_sfb
