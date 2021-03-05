@@ -44,26 +44,20 @@ class Buck:
 
     def set_pwm(self, t_pwm, n_pwm=None):
         self.t_pwm = t_pwm
+        
 
     def set_max_step(self, max_step):
         self.max_step = max_step
+        
 
     def set_sim_time(self, t_sim):
         self.t_sim = t_sim
+        
 
-    
-##    def set_run_params(self):
-##        self.n = round(self.t_sim / self.dt)
-##        self.n_cycles = round(self.t_sim / self.t_pwm)
-##        self.t = self.dt * np.arange(self.n)
-##        self.set_vectors()
-##        print('\n---------------------------------------------')
-##        print('|{:^43}|'.format('Run params'))
-##        print('---------------------------------------------')
-##        print('|{:^21}|{:^21.4e}|'.format('Max. step size', self.max_step))
-##        print('|{:^21}|{:^21}|'.format('Sim cycles', self.n_cycles))
-##        print('|{:^21}|{:^21}|'.format('State points', self.n))
-##        print('---------------------------------------------\n')
+    def set_harmonics(self, k):
+        h = [0]
+        h.extend(k)
+        self.harmonics = k
 
 
     def set_v_in(self, v_in):
@@ -79,89 +73,54 @@ class Buck:
         self.ctlparams = params
 
 
-    def gam_matrices(self, k, f):
+    def print_run_params(self):
+        print('\n---------------------------------------------')
+        print('|{:^43}|'.format('Run params'))
+        print('---------------------------------------------')
+        print('|{:^21}|{:^21.4e}|'.format('Max. step size', self.max_step))
+        print('|{:^21}|{:^21}|'.format('Harmonics', str(self.harmonics)))
+        print('---------------------------------------------\n')
+
+    def gam_matrices(self, k, f, delta):
         w = 2 * np.pi * f
-        R = self.R; L = self.L; C = self.C; v_in = self.v_in
+        R = self.R; L = self.L; C = self.C
         
         A = np.array([[0,       k*w,    -1/L,       0],
                       [-k*w,    0,      0,          -1/L],
                       [1/C,     0,      -1/(R*C),   k*w],
                       [0,       1/C,    -w*k,       -1/(R*C)]])
         
-        B = np.array([[v_in / (2*np.pi*k*L)],
-                      [v_in / (2*np.pi*k*L)],
+        B = np.array([[1 / (2*np.pi*k*L)],
+                      [1 / (2*np.pi*k*L)],
                       [0],
                       [0]])
 
-        C = np.array([[np.sin(2*np.pi*k*0.5)],
-                      [np.cos(2*np.pi*k*0.5) - 1],
+        C = np.array([[np.sin(2*np.pi*k*delta)],
+                      [np.cos(2*np.pi*k*delta) - 1],
                       [0],
                       [0]])
 
         return A, B, C
-        
-##    def set_vectors(self):
-##        self.t = self.dt * np.arange(self.n)
-##        self.x = np.zeros((self.n, 2))
-##        self.u = np.zeros((self.n, 1))
-##        self.pwm = np.zeros((self.n, 1))
-##        self.e = np.zeros((self.n, 1))
     
     
-    def sim(self, v_ref, v_in=None, control='ol', k=None):
+    
+    def sim(self, v_ref, v_in=None):
+
+        self.print_run_params()
 
         # Loads/creates useful variables
         t_pwm = self.t_pwm
         max_step = self.max_step
         t_sim = self.t_sim
-        k = [1]
+        k = self.harmonics
 
         if v_in is None:
             if self.v_in is None:
                 print('Need to define v_in before simulating!')
                 return -1
             v_in = self.v_in
-        
 
-##        # Sets v_ref and v_in as vectors if they are numbers
-##        if type(v_ref) is int or type(v_ref) is float:
-##            v_ref = v_ref * np.ones(n_cycles)
-##
-##        if type(v_in) is int or type(v_in) is float:
-##            v_in = v_in * np.ones(n_cycles)
-##        elif v_in is None:
-##            v_in = self.v_in * np.ones(n_cycles)
-
-##        # Control
-##        if control == 'pi':
-##            ctlparams = self.ctlparams
-##            ctlparams['dt'] = t_pwm
-##            ctlini = {'e_1': v_ref[0] - x[0, 1], 'u_1': v_ref[0] / v_in[0]}
-##            ctl = pydctl.PI(ctlparams)
-##            #ctl.set_initial_conditions(ctlini)
-##
-##        elif control == 'pid':
-##            ctlparams = self.ctlparams
-##            ctlparams['dt'] = t_pwm
-##            ctlini = {'e_1': v_ref[0] - x[0, 1], 'u_1': v_ref[0] / v_in[0]}
-##            ctl = pydctl.PID(ctlparams)
-##            if self.x_ini[0, 0] != 0 and self.x_ini[0, 1] != 0:
-##                ctl.set_initial_conditions(u_1=v_ref[0] / v_in[0], u_2=v_ref[0] / v_in[0])
-##        
-##        elif control == 'mpc':
-##            ctlparams = self.ctlparams
-##            ctlparams['A'] = self.Am
-##            ctlparams['B'] = self.Bm
-##            ctlparams['C'] = self.Cm
-##            ctlparams['dt'] = t_pwm
-##            ctl = pydctl.MPC(ctlparams)
-##            self.ctl = ctl
-##
-##        else:
-##            ctlparams = {'dc': v_ref[0] / v_in[0]}
-##            ctlini = {'dc': v_ref[0] / v_in[0]}
-##            ctl = pydctl.OL(ctlparams)
-##            ctl.set_initial_conditions(ctlini)
+        delta = v_ref / v_in
     
         _ti = time.time()
         #print(self.x_ini)
@@ -172,15 +131,24 @@ class Buck:
         Bdc = self.Bm
 
         def f_x_dc(t, x):
-            x_dot = Adc @ x + Bdc * 0.5 * v_in
+            x_dot = Adc @ x + Bdc * delta * v_in
             return x_dot
 
         sol_dc = scipy.integrate.solve_ivp(f_x_dc, [0, t_sim], x0, max_step=max_step, vectorized=True)
         t = sol_dc.t
 
-        for ki in k:
+        x_h = np.zeros((len(k) + 1, t.shape[0], 2))
+        x_h[0, :, 0] = sol_dc.y[0, :]
+        x_h[0, :, 1] = sol_dc.y[1, :]
+
+        self.x_h = x_h
+        self.t = t
+
+        # Now solve for each harmonic
+        for i, ki in enumerate(k):
             print(ki)
-            Ah, Bh, Ch = self.gam_matrices(ki, 1 / t_pwm)
+            Ah, Bh, Ch = self.gam_matrices(ki, 1 / t_pwm, delta)
+            Bh = Bh * v_in
             x0 = [0, 0, 0, 0]
             def f_h(t, x):
                 x_dot = Ah @ x + Bh * Ch
@@ -193,13 +161,12 @@ class Buck:
 
             v_c_ki_re = sol_h.y[2, :]
             v_c_ki_im = sol_h.y[3, :]
-            v_c_ki = 2 * (v_c_ki_re * np.cos(ki*2*np.pi/t_pwm*t) - v_c_ki_im * np.sin(ki*2*np.pi/t_pwm*t))                        
-                
+            v_c_ki = 2 * (v_c_ki_re * np.cos(ki*2*np.pi/t_pwm*t) - v_c_ki_im * np.sin(ki*2*np.pi/t_pwm*t))
+
+            x_h[i + 1, :, 0] = i_l_ki
+            x_h[i + 1, :, 1] = v_c_ki
+            
         _tf = time.time()
         print('Sim time: {:.4f} s\n'.format(_tf - _ti))
 
-        self.t = t
-        self.x = np.zeros((t.shape[0], 2))
-        self.x[:, 0] = sol_dc.y[0, :] + i_l_ki
-        #self.il = sol_dc[0, :] + i_l_ki
-        self.x[:, 1] = sol_dc.y[1, :] + v_c_ki
+        self.x = np.sum(x_h, axis=0)
