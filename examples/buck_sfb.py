@@ -23,6 +23,10 @@ t_pwm = 1/200e3
 # Number of points per cycle
 n_pwm = 500
 
+# Specs for state feedback
+Ts = 0.5e-3
+os = 5/100
+
 # --- Simulation ---
 buck = pyd.pe.Buck(R, L, C)
 buck.set_pwm(t_pwm, n_pwm)
@@ -48,7 +52,15 @@ t_pi = buck.t
 x_pi = buck.x
 u_pi = buck.u
 
-sfb_params = {'p1': -10000+1j*5500, 'p2': -10000-1j*5500, 'p3': -15000}
+# Computes poles of compensated system
+zeta = -np.log(os) / np.sqrt(np.pi**2 + (np.log(os))**2)
+wn = 4/Ts/zeta
+p1 = -zeta * wn + wn * np.sqrt(zeta**2 - 1, dtype=complex)
+p2 = np.conj(p1)
+p3 = 10 * p1.real
+
+sfb_params = {'p1':p1, 'p2':p2, 'p3':p3}
+#sfb_params = {'p1': -10000+1j*5500, 'p2': -10000-1j*5500, 'p3': -15000}
 buck.set_ctlparams(sfb_params)
 buck.sim(v_ref=v_ref_p, v_in=v_in_p, control='sfb')
 t_sfb = buck.t
