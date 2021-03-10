@@ -295,7 +295,7 @@ class DMPC:
 
         if self.ref is None:
             dx = (x - self.x_1)
-            du = -self.K_y * (x[1] - ref) / u + -self.K_x @ dx / u
+            du = -self.K_y * (x[1] - ref) + -self.K_x @ dx
             u_dmpc = du + self.u_1
         else:
             i_i = self.__i
