@@ -273,7 +273,7 @@ class DMPC:
             self.dmpc_sys = ctl.mpc.System(Ad, Bd, Cd, n_p=n_p, n_c=n_c, r_w=r_w)
             Ky, Kmpc = self.dmpc_sys.opt_cl_gains()
             Kx = Kmpc[0, :-1]
-            self.K_y = Ky
+            self.K_y = Kmpc[0, -1]
             self.K_x = Kx
         else:
             dmpc_sys = ctl.mpc.System(Ad, Bd, Cd, n_p=n_p, n_c=n_c, r_w=r_w)
@@ -296,7 +296,7 @@ class DMPC:
         if self.ref is None:
             dx = (x - self.x_1)
             du = -self.K_y * (x[1] - ref) / u + -self.K_x @ dx / u
-            u_dmpc = du[0] + self.u_1
+            u_dmpc = du + self.u_1
         else:
             i_i = self.__i
             i_f = self.__i + self.n_p
