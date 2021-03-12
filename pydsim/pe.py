@@ -196,6 +196,7 @@ class Buck:
 
         elif control == 'dmpc':
             ctlparams = self.ctlparams
+            ctlparams['v_in'] = v_in[0]
             ctlparams['A'] = self.Am
             ctlparams['B'] = self.Bm
             ctlparams['C'] = self.Cm
@@ -207,6 +208,7 @@ class Buck:
 
         elif control == 'sfb':
             ctlparams = self.ctlparams
+            ctlparams['v_in'] = v_in[0]
             ctlparams['A'] = self.Am
             ctlparams['B'] = self.Bm
             ctlparams['C'] = self.Cm

@@ -240,14 +240,16 @@ class MPC:
         
         return u_opt / u
 
+
 class DMPC:
 
     def __init__(self, dmpc_params):
-        Am = dmpc_params['A']
-        Bm = dmpc_params['B']
-        Cm = dmpc_params['C']
         dt = dmpc_params['dt']
-        self.Am = Am; self.Bm = Bm; self.Cm = Cm; self.dt = dt
+        v_in = dmpc_params['v_in']
+        Am = dmpc_params['A']
+        Bm = dmpc_params['B'] * v_in
+        Cm = dmpc_params['C']
+        self.Am = Am; self.Bm = Bm; self.Cm = Cm; self.dt = dt; self.v_in = v_in
 
         n_p = dmpc_params['n_p']
         n_c = dmpc_params['n_c']
@@ -297,14 +299,16 @@ class DMPC:
             dx = (x - self.x_1)
             du = -self.K_y * (x[1] - ref) + -self.K_x @ dx
             u_dmpc = du + self.u_1
+            if u_dmpc > 1: u_dmpc = 1
+            elif u_dmpc < 0: u_dmpc = 0
         else:
             i_i = self.__i
             i_f = self.__i + self.n_p
             Rs_bar = np.ones((self.n_p, 1))
             Rs_bar[:, 0] = self.ref[i_i:i_f]
-            K_r = (self.M @ Rs_bar) / u
+            K_r = (self.M @ Rs_bar)
             dx = (x - self.x_1)
-            du = K_r + -self.K_y * x[1] / u + -self.K_x @ dx / u
+            du = K_r + -self.K_y * x[1] + -self.K_x @ dx
             u_dmpc = du[0] + self.u_1
             self.__i += 1
 
@@ -317,11 +321,12 @@ class DMPC:
 class SFB:
     
     def __init__(self, sfb_params):
-        Am = sfb_params['A']
-        Bm = sfb_params['B']
-        Cm = sfb_params['C']
+        v_in = sfb_params['v_in']
         dt = sfb_params['dt']
-        self.Am = Am; self.Bm = Bm; self.Cm = Cm; self.dt = dt
+        Am = sfb_params['A']
+        Bm = sfb_params['B'] * v_in
+        Cm = sfb_params['C']
+        self.Am = Am; self.Bm = Bm; self.Cm = Cm; self.dt = dt; self.v_in = v_in
 
         # Aug model
         Aa = np.zeros((3,3))
@@ -358,10 +363,10 @@ class SFB:
 
 
     def control(self, x, u, ref):
-        e = (ref - x[1]) / u
+        e = (ref - x[1])
         zeta = self.zeta_1 + self.dt / 2 * (e + self.e_1)
         
-        u_sfb = -self.K_x @ x / u + self.K_z * zeta
+        u_sfb = -self.K_x @ x + self.K_z * zeta
 
         self.zeta_1 = zeta
         self.e_1 = e
