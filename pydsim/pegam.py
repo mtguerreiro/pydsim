@@ -137,9 +137,9 @@ class Buck:
         sol_dc = scipy.integrate.solve_ivp(f_x_dc, [0, t_sim], x0, max_step=max_step, vectorized=True, t_eval=t_eval)
         t = sol_dc.t
 
-        x_h = np.zeros((2, t.shape[0], len(k) + 1))
-        x_h[0, :, 0] = sol_dc.y[0, :]
-        x_h[1, :, 0] = sol_dc.y[1, :]
+        x_h = np.zeros((t.shape[0], 2, len(k) + 1))
+        x_h[:, 0, 0] = sol_dc.y[0, :]
+        x_h[:, 1, 0] = sol_dc.y[1, :]
 
         self.t = t
 
@@ -162,11 +162,11 @@ class Buck:
             v_c_ki_im = sol_h.y[3, :]
             v_c_ki = 2 * (v_c_ki_re * np.cos(ki*2*np.pi/t_pwm*t) - v_c_ki_im * np.sin(ki*2*np.pi/t_pwm*t))
 
-            x_h[0, :, i + 1] = i_l_ki
-            x_h[1, :, i + 1] = v_c_ki
+            x_h[:, 0, i + 1] = i_l_ki
+            x_h[:, 1, i + 1] = v_c_ki
             
         _tf = time.time()
         print('Sim time: {:.4f} s\n'.format(_tf - _ti))
 
         self.x_h = x_h
-        self.x = np.sum(x_h, axis=-1).T
+        self.x = np.sum(x_h, axis=-1)
