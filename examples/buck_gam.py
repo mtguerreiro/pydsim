@@ -15,7 +15,7 @@ v_in = 10
 v_ref = 8
 
 # Sim time
-t_sim = 1e-3
+t_sim = 0.5e-3
 
 # PWM period
 t_pwm = 1/200e3

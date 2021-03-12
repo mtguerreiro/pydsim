@@ -141,7 +141,6 @@ class Buck:
         x_h[0, :, 0] = sol_dc.y[0, :]
         x_h[0, :, 1] = sol_dc.y[1, :]
 
-        self.x_h = x_h
         self.t = t
 
         # Now solve for each harmonic
@@ -169,4 +168,5 @@ class Buck:
         _tf = time.time()
         print('Sim time: {:.4f} s\n'.format(_tf - _ti))
 
+        self.x_h = x_h
         self.x = np.sum(x_h, axis=0)
