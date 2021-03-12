@@ -194,6 +194,28 @@ class Buck:
             ctl = pydctl.MPC(ctlparams)
             self.ctl = ctl
 
+        elif control == 'dmpc':
+            ctlparams = self.ctlparams
+            ctlparams['v_in'] = v_in[0]
+            ctlparams['A'] = self.Am
+            ctlparams['B'] = self.Bm
+            ctlparams['C'] = self.Cm
+            ctlparams['dt'] = n_pwm * self.dt
+            ctl = pydctl.DMPC(ctlparams)
+            #ctl.u_1 = 0.5
+            #ctl.x_1 = self.x_ini[0]
+            self.ctl = ctl
+
+        elif control == 'sfb':
+            ctlparams = self.ctlparams
+            ctlparams['v_in'] = v_in[0]
+            ctlparams['A'] = self.Am
+            ctlparams['B'] = self.Bm
+            ctlparams['C'] = self.Cm
+            ctlparams['dt'] = n_pwm * self.dt
+            ctl = pydctl.SFB(ctlparams)
+            self.ctl = ctl
+            
         else:
             ctlparams = {'dc': v_ref[0] / v_in[0]}
             ctlini = {'dc': v_ref[0] / v_in[0]}
@@ -251,9 +273,9 @@ class Buck:
             # the dif. equation x[n+1] = Ax[n]...). Thus, we filter up to the
             # i_e + 1 sample.
             if self.filter is not None:
-                xi = np.array([x[i_s - 1, 1], x[i_s - 2, 1]])
-                yi = np.array([xfilt[i_s - 1, 1], xfilt[i_s - 2, 1]])
-                xfilt[i_s:(i_e + 1), 1] = pysp.filter_utils.sos_filter(f_tf, x[i_s:(i_e + 1), 1], x_init=xi, y_init=yi)
+                xi = np.array([x[i_s - 1, :], x[i_s - 2, :]])
+                yi = np.array([xfilt[i_s - 1, :], xfilt[i_s - 2, :]])
+                xfilt[i_s:(i_e + 1), :] = pysp.filter_utils.sos_filter(f_tf, x[i_s:(i_e + 1), :], x_init=xi, y_init=yi)
             
             pwm[i_s:i_e] = u_s
 

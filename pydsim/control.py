@@ -1,6 +1,7 @@
 import math
 import scipy
 import numpy as np
+import pyctl as ctl
 import pydsim.utils as pydutils
 
 class PI:
@@ -160,6 +161,17 @@ class MPC:
         self.beta = mpc_params['beta']
 
         try:
+            n_ref = mpc_params['ref'].shape[0]
+            ref = np.zeros(n_ref + mpc_params['n_step'])
+            ref[:n_ref] = mpc_params['ref']
+            ref[n_ref:] = mpc_params['ref'][-1]
+            self.ref = ref
+        except:
+            self.ref = None
+        
+        #self.ref = mpc_params['ref']
+
+        try:
             self.il_max = mpc_params['il_max']
         except:
             self.il_max = np.inf
@@ -167,6 +179,8 @@ class MPC:
         self.n_step = mpc_params['n_step']
 
         self.set_model(self.A, self.B, self.C, self.dt)
+
+        self.__i = 0
 
 
     def set_model(self, A, B, C, dt):
@@ -187,15 +201,15 @@ class MPC:
     
     
     def opt(self, x, u, ref, n_step):
-
-        x_u_0, j_u_0 = self.pred_cost(x, 0, ref)
+        
+        x_u_0, j_u_0 = self.pred_cost(x, 0, ref[0])
         if n_step != 1:
-            u_0_opt, j_0_opt = self.opt(x_u_0, u, ref, n_step - 1)
+            u_0_opt, j_0_opt = self.opt(x_u_0, u, ref[1:], n_step - 1)
             j_u_0 += j_0_opt
 
-        x_u_1, j_u_1 = self.pred_cost(x, u, ref)
+        x_u_1, j_u_1 = self.pred_cost(x, u, ref[0])
         if n_step != 1:
-            u_1_opt, j_1_opt = self.opt(x_u_1, u, ref, n_step - 1)
+            u_1_opt, j_1_opt = self.opt(x_u_1, u, ref[1:], n_step - 1)
             j_u_1 += j_1_opt
 
         if j_u_0 < j_u_1:
@@ -212,8 +226,149 @@ class MPC:
 
         x = x.reshape(-1, 1)
 
-        u_opt, j_opt = self.opt(x, u, ref, self.n_step)
+        if self.ref is None:
+            vref = np.zeros(self.n_step)
+            vref[:] = ref
+        else:
+            i_i = self.__i
+            i_f = self.__i + self.n_step
+            vref = self.ref[i_i:i_f]
+            self.__i += 1
 
-        #print('u_opt: {:}'.format(u_opt))
-
+        #print(vref)
+        u_opt, j_opt = self.opt(x, u, vref, self.n_step)
+        
         return u_opt / u
+
+
+class DMPC:
+
+    def __init__(self, dmpc_params):
+        dt = dmpc_params['dt']
+        v_in = dmpc_params['v_in']
+        Am = dmpc_params['A']
+        Bm = dmpc_params['B'] * v_in
+        Cm = dmpc_params['C']
+        self.Am = Am; self.Bm = Bm; self.Cm = Cm; self.dt = dt; self.v_in = v_in
+
+        n_p = dmpc_params['n_p']
+        n_c = dmpc_params['n_c']
+        r_w = dmpc_params['r_w']
+        self.n_p = n_p; self.n_c = n_c; self.r_w = r_w
+
+        Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((Am, Bm, Cm, 0), dt, method='bilinear')
+        self.Ad = Ad; self.Bd = Bd; self.Cd = Cd
+
+        self.__i = 0
+
+        try:
+            n_ref = dmpc_params['ref'].shape[0]
+            ref = np.zeros(n_ref + n_p)
+            ref[:n_ref] = dmpc_params['ref']
+            ref[n_ref:] = dmpc_params['ref'][-1]           
+            self.ref = ref
+        except:
+            ref = None
+            self.ref = ref
+
+        if ref is None:
+            self.dmpc_sys = ctl.mpc.System(Ad, Bd, Cd, n_p=n_p, n_c=n_c, r_w=r_w)
+            Ky, Kmpc = self.dmpc_sys.opt_cl_gains()
+            Kx = Kmpc[0, :-1]
+            self.K_y = Kmpc[0, -1]
+            self.K_x = Kx
+        else:
+            dmpc_sys = ctl.mpc.System(Ad, Bd, Cd, n_p=n_p, n_c=n_c, r_w=r_w)
+            self.dmpc_sys = dmpc_sys
+            F, Phi = ctl.mpc.opt_matrices(dmpc_sys.A, dmpc_sys.B, dmpc_sys.C, n_p, n_c)
+            R_bar = r_w * np.eye(n_c)
+            M = np.linalg.inv(Phi.T @ Phi + R_bar) @ Phi.T
+            self.M = M[0, :]
+            Ky, Kmpc = self.dmpc_sys.opt_cl_gains()
+            Kx = Kmpc[0, :-1]
+            self.K_x = Kx
+            self.K_y = Kmpc[0, -1]
+
+        self.x_1 = np.array([0, 0])
+        self.u_1 = 0
+
+
+    def control(self, x, u, ref):
+
+        if self.ref is None:
+            dx = (x - self.x_1)
+            du = -self.K_y * (x[1] - ref) + -self.K_x @ dx
+            u_dmpc = du + self.u_1
+            if u_dmpc > 1: u_dmpc = 1
+            elif u_dmpc < 0: u_dmpc = 0
+        else:
+            i_i = self.__i
+            i_f = self.__i + self.n_p
+            Rs_bar = np.ones((self.n_p, 1))
+            Rs_bar[:, 0] = self.ref[i_i:i_f]
+            K_r = (self.M @ Rs_bar)
+            dx = (x - self.x_1)
+            du = K_r + -self.K_y * x[1] + -self.K_x @ dx
+            u_dmpc = du[0] + self.u_1
+            self.__i += 1
+
+        self.x_1 = x
+        self.u_1 = u_dmpc
+
+        return u_dmpc
+
+
+class SFB:
+    
+    def __init__(self, sfb_params):
+        v_in = sfb_params['v_in']
+        dt = sfb_params['dt']
+        Am = sfb_params['A']
+        Bm = sfb_params['B'] * v_in
+        Cm = sfb_params['C']
+        self.Am = Am; self.Bm = Bm; self.Cm = Cm; self.dt = dt; self.v_in = v_in
+
+        # Aug model
+        Aa = np.zeros((3,3))
+        Ba = np.zeros((3,1))
+
+        Aa[:2, :2] = Am
+        Aa[2, :2] = Cm
+        Ba[:2, 0] = Bm[:, 0]
+        self.Aa = Aa; self.Ba = Ba
+
+        # Poles
+        p1 = sfb_params['p1']
+        p2 = sfb_params['p2']
+        p3 = sfb_params['p3']
+        self.p1 = p1; self.p2 = p2; self.p3 = p3
+
+        c_eq = np.polymul(np.polymul([1, -p1], [1, -p2]).real, [1, -p3]).real
+
+        # Ackermann
+        Mc = np.zeros((3,3))
+        Mc[:, 0] = Ba[:, 0]
+        Mc[:, 1] = (Aa @ Ba)[:, 0]
+        Mc[:, 2] = (Aa @ Aa @ Ba)[:, 0]
+
+        Phi_d = c_eq[0] * Aa @ Aa @ Aa + c_eq[1] * Aa @ Aa + c_eq[2] * Aa + c_eq[3] * np.eye(3)
+
+        Kx = np.array([[0, 0, 1]]) @ np.linalg.inv(Mc) @ Phi_d
+        
+        self.K_x = Kx[0, :-1]
+        self.K_z = Kx[0, -1]
+
+        self.e_1 = 0
+        self.zeta_1 = 0
+
+
+    def control(self, x, u, ref):
+        e = (ref - x[1])
+        zeta = self.zeta_1 + self.dt / 2 * (e + self.e_1)
+        
+        u_sfb = -self.K_x @ x + self.K_z * zeta
+
+        self.zeta_1 = zeta
+        self.e_1 = e
+        
+        return u_sfb
