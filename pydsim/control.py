@@ -110,7 +110,7 @@ class PID:
     
     def control(self, x, u, ref):
         
-        e = (ref - x[1]) / u
+        e = (ref - x[1])
         
         u_pid = self.a1 * self.u_1 + self.a2 * self.u_2 + self.b0 * e + self.b1 * self.e_1 + self.b2 * self.e_2
 

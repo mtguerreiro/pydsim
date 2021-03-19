@@ -184,6 +184,7 @@ class Buck:
             ctl = pydctl.PID(ctlparams)
             if self.x_ini[0, 0] != 0 and self.x_ini[0, 1] != 0:
                 ctl.set_initial_conditions(u_1=v_ref[0] / v_in[0], u_2=v_ref[0] / v_in[0])
+            self.ctl = ctl
             
         elif control == 'mpc':
             ctlparams = self.ctlparams
