@@ -152,10 +152,11 @@ class OL:
 class MPC:
 
     def __init__(self, mpc_params):
-        self.A = mpc_params['A']
-        self.B = mpc_params['B']
-        self.C = mpc_params['C']
         self.dt = mpc_params['dt']
+        v_in = mpc_params['v_in']
+        self.A = mpc_params['A']
+        self.B = mpc_params['B'] * v_in
+        self.C = mpc_params['C']
 
         self.alpha = mpc_params['alpha']
         self.beta = mpc_params['beta']
@@ -204,12 +205,12 @@ class MPC:
         
         x_u_0, j_u_0 = self.pred_cost(x, 0, ref[0])
         if n_step != 1:
-            u_0_opt, j_0_opt = self.opt(x_u_0, u, ref[1:], n_step - 1)
+            u_0_opt, j_0_opt = self.opt(x_u_0, 1, ref[1:], n_step - 1)
             j_u_0 += j_0_opt
 
-        x_u_1, j_u_1 = self.pred_cost(x, u, ref[0])
+        x_u_1, j_u_1 = self.pred_cost(x, 1, ref[0])
         if n_step != 1:
-            u_1_opt, j_1_opt = self.opt(x_u_1, u, ref[1:], n_step - 1)
+            u_1_opt, j_1_opt = self.opt(x_u_1, 1, ref[1:], n_step - 1)
             j_u_1 += j_1_opt
 
         if j_u_0 < j_u_1:
@@ -238,7 +239,7 @@ class MPC:
         #print(vref)
         u_opt, j_opt = self.opt(x, u, vref, self.n_step)
         
-        return u_opt / u
+        return u_opt
 
 
 class DMPC:
