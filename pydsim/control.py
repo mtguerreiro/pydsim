@@ -82,8 +82,8 @@ class PID:
         T = 2 / self.dt
 
         self.a0 = T**2 + T * N
-        self.a1 = -(-2 * T**2) / self.a0
-        self.a2 = -(T**2 - T * N) / self.a0
+        self.a1 = (-2 * T**2) / self.a0
+        self.a2 = (T**2 - T * N) / self.a0
         
         self.b0 = (T**2 * (kp + N*kd) + T * (ki + N*kp) + N*ki) / self.a0
         self.b1 = (2 * (N + ki - T**2 * (kp + N*kd))) / self.a0
@@ -112,7 +112,7 @@ class PID:
         
         e = (ref - x[1])
         
-        u_pid = self.a1 * self.u_1 + self.a2 * self.u_2 + self.b0 * e + self.b1 * self.e_1 + self.b2 * self.e_2
+        u_pid = -self.a1 * self.u_1 - self.a2 * self.u_2 + self.b0 * e + self.b1 * self.e_1 + self.b2 * self.e_2
 
         if self.sat is True:
             if u_pid > 1:
