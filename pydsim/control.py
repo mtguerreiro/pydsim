@@ -8,32 +8,28 @@ class PI:
 
     def __init__(self, pi_params):
 
-        #self.kp = pi_params['kp']
-        #self.ki = pi_params['ki']
-        #self.dt = pi_params['dt']
+        # Controller parameters
+        self.dt = None
 
-        self.set_params(pi_params)
-        
+        # Gains
+        self.kp = None
+        self.ki = None
+
+        # Controller states        
         self.e_1 = 0
         self.u_1 = 0
 
 
-    def set_params(self, pi_params):
-        self.kp = pi_params['kp']
-        self.ki = pi_params['ki']
-        self.dt = pi_params['dt']
+    def _set_params(self, kp, ki, dt):
+
+        self.dt = dt
+
+        self.kp = kp
+        self.ki = ki
 
         self.a1 = 1
         self.b0 = 1 / 2 * (2 * self.kp + self.dt * self.ki)
         self.b1 = 1 / 2 * (self.dt * self.ki - 2 * self.kp)
-        #self.a1 = 1
-        #self.b0 = 1 / 2 * (2 * self.kp + self.dt * self.ki)
-        #self.b1 = 1 / 2 * (self.dt * self.ki)
-        
-        #self.a1 = 1
-        #self.b0 = self.kp
-        #self.b1 = (self.dt * self.ki - self.kp)
-        
 
     def set_initial_conditions(self, ini_conditions):
         self.u_1 = ini_conditions['u_1']
@@ -321,32 +317,66 @@ class DMPC:
 
 class SFB:
     
-    def __init__(self, sfb_params):
-        v_in = sfb_params['v_in']
-        dt = sfb_params['dt']
-        Am = sfb_params['A']
-        Bm = sfb_params['B'] * v_in
-        Cm = sfb_params['C']
-        self.Am = Am; self.Bm = Bm; self.Cm = Cm; self.dt = dt; self.v_in = v_in
+    def __init__(self):
 
-        # Aug model
-        Aa = np.zeros((3,3))
-        Ba = np.zeros((3,1))
-
-        Aa[:2, :2] = Am
-        Aa[2, :2] = Cm
-        Ba[:2, 0] = Bm[:, 0]
-        self.Aa = Aa; self.Ba = Ba
+        # Controller parameters
+        self.dt = None
+        self.v_in = None
 
         # Poles
-        p1 = sfb_params['p1']
-        p2 = sfb_params['p2']
-        p3 = sfb_params['p3']
-        self.p1 = p1; self.p2 = p2; self.p3 = p3
+        self.poles = None
 
-        c_eq = np.polymul(np.polymul([1, -p1], [1, -p2]).real, [1, -p3]).real
+        # Model and augmented model
+        self.A = None
+        self.B = None
+        self.C = None
 
+        self.Aa = None
+        self.Ba = None
+
+        # Gains
+        self.Kx = None
+        self.Ky = None
+
+        # Controlle states
+        self.e_1 = 0
+        self.zeta_1 = 0
+
+    def _set_params(self, A, B, C, poles, v_in, dt):
+
+        self.poles = poles
+        self.v_in = v_in
+        self.dt = dt
+
+        self.A = A
+        self.B = B * v_in
+        self.C = C
+
+        # Augmented model
+        Aa, Ba = self._aug_model(A, B * v_in, C)
+        
         # Ackermann
+        Kx = self._acker(Aa, Ba, poles)
+        self.Kx = Kx[0, :-1]
+        self.Kz = Kx[0, -1]
+
+
+    def _aug_model(self, A, B, C):
+        
+        Aa = np.zeros((3,3))
+        Ba = np.zeros((3,1))        
+
+        Aa[:2, :2] = A
+        Aa[2, :2] = C
+        Ba[:2, 0] = B[:, 0]
+
+        return Aa, Ba
+
+
+    def _acker(self, Aa, Ba, p):
+
+        c_eq = np.polymul(np.polymul([1, -p[0]], [1, -p[1]]).real, [1, -p[2]]).real
+
         Mc = np.zeros((3,3))
         Mc[:, 0] = Ba[:, 0]
         Mc[:, 1] = (Aa @ Ba)[:, 0]
@@ -355,21 +385,30 @@ class SFB:
         Phi_d = c_eq[0] * Aa @ Aa @ Aa + c_eq[1] * Aa @ Aa + c_eq[2] * Aa + c_eq[3] * np.eye(3)
 
         Kx = np.array([[0, 0, 1]]) @ np.linalg.inv(Mc) @ Phi_d
+
+        return Kx
+
+
+    def meas(self, signals, i, j):
+        x = signals._x[i]
+        r = signals.v_ref[j]
+
+        sigs = [x, r]
         
-        self.K_x = Kx[0, :-1]
-        self.K_z = Kx[0, -1]
+        return sigs
+    
 
-        self.e_1 = 0
-        self.zeta_1 = 0
+    def control(self, sigs):
+        x = sigs[0]
+        r = sigs[1]
 
-
-    def control(self, x, u, ref):
-        e = (ref - x[1])
+        e = (r - x[1])
         zeta = self.zeta_1 + self.dt / 2 * (e + self.e_1)
         
-        u_sfb = -self.K_x @ x + self.K_z * zeta
+        u_sfb = -self.Kx @ x + self.Kz * zeta
 
         self.zeta_1 = zeta
         self.e_1 = e
         
         return u_sfb
+

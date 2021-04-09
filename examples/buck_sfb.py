@@ -42,7 +42,7 @@ p1 = -zeta * wn + wn * np.sqrt(zeta**2 - 1, dtype=complex)
 p2 = np.conj(p1)
 p3 = 10 * p1.real
 
-sfb_params = {'p1':p1, 'p2':p2, 'p3':p3}
+sfb_params = {'poles': [p1, p2, p3]}
 buck.set_ctlparams(sfb_params)
 buck.sim(v_ref=v_ref, v_in=v_in_p, control='sfb')
 
