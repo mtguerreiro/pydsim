@@ -15,36 +15,35 @@ v_in_step = -1
 v_ref = 5
 
 # Sim time
-t_sim = 50e-3
+t_sim = 25e-3
 
-# PWM period
-t_pwm = 1/200e3
+# PWM frequency
+f_pwm = 200e3
 
-# Number of points per cycle
-n_pwm = 200
+# Step size for simulation
+dt = 1 / f_pwm / 500
 
 # --- Simulation ---
 buck = pyd.pe.Buck(R, L, C)
-buck.set_pwm(t_pwm, n_pwm)
-buck.set_sim_time(t_sim)
+buck.set_f_pwm(f_pwm)
+buck.set_sim_params(dt, t_sim)
 
-v_in_p = v_in * np.ones(buck.n_cycles)
-v_in_p[int(buck.n_cycles / 2):] = v_in + v_in_step
+buck.sim(v_ref=v_ref, v_in=v_in, control='ol')
+t_ol = buck.signals.t
+x_ol = buck.signals.x
+u_ol = buck.signals.d
 
-buck.sim(v_ref=v_ref, v_in=v_in_p, control='ol')
-t_ol = buck.t
-x_ol = buck.x
-
-ctlparams = {'ki': 200, 'kp': 0}
+ctlparams = {'ki': 30, 'kp': 0}
 buck.set_ctlparams(ctlparams)
-buck.sim(v_ref=v_ref, v_in=v_in_p, control='pi')
-t_pi = buck.t
-x_pi = buck.x
+buck.sim(v_ref=v_ref, v_in=v_in, control='pi')
+t_pi = buck.signals.t
+x_pi = buck.signals.x
+u_pi = buck.signals.d
 
 # --- Results ---
 plt.figure(figsize=(10,6))
 
-ax = plt.subplot(2,1,1)
+ax = plt.subplot(3,1,1)
 plt.plot(t_ol / 1e-3, x_ol[:, 1], label='ol')
 plt.plot(t_pi / 1e-3, x_pi[:, 1], label='pi')
 plt.grid()
@@ -52,12 +51,20 @@ plt.legend()
 plt.xlabel('Time (ms)')
 plt.ylabel('Voltage (V)')
 
-plt.subplot(2,1,2, sharex=ax)
+plt.subplot(3,1,2, sharex=ax)
 plt.plot(t_ol / 1e-3, x_ol[:, 0], label='ol')
 plt.plot(t_pi / 1e-3, x_pi[:, 0], label='pi')
 plt.grid()
 plt.legend()
 plt.xlabel('Time (ms)')
 plt.ylabel('Current (A)')
+
+plt.subplot(3,1,3, sharex=ax)
+plt.plot(t_ol / 1e-3, u_ol, label='ol')
+plt.plot(t_pi / 1e-3, u_pi, label='pi')
+plt.grid()
+plt.legend()
+plt.xlabel('Time (ms)')
+plt.ylabel('$u$')
 
 plt.tight_layout()

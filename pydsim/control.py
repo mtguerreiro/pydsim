@@ -4,9 +4,39 @@ import numpy as np
 import pyctl as ctl
 import pydsim.utils as pydutils
 
+
+class OL:
+
+    def __init__(self):
+        
+        self.dc = None
+
+
+    def _set_params(self, dc):
+        
+        self.dc = dc
+
+
+    def set_initial_conditions(self, ini_conditions):
+        
+        self.dc = ini_conditions['dc']
+
+    
+    def meas(self, signals, i, j):
+
+        sigs = None
+        
+        return sigs
+
+    
+    def control(self, sigs):
+
+        return self.dc
+
+
 class PI:
 
-    def __init__(self, pi_params):
+    def __init__(self):
 
         # Controller parameters
         self.dt = None
@@ -31,16 +61,33 @@ class PI:
         self.b0 = 1 / 2 * (2 * self.kp + self.dt * self.ki)
         self.b1 = 1 / 2 * (self.dt * self.ki - 2 * self.kp)
 
+
     def set_initial_conditions(self, ini_conditions):
+        
         self.u_1 = ini_conditions['u_1']
         self.e_1 = ini_conditions['e_1']
 
 
-    def control(self, x, u, ref):
+    def meas(self, signals, i, j):
+        vc = signals._x[i, 1]
+        ref = signals.v_ref[j]
+
+        sigs = [vc, ref]
+
+        return sigs
+
+
+    def control(self, sigs):
+
+        vc = sigs[0]
+        ref = sigs[1]
         
-        e = (ref - x[1]) / u
+        e = (ref - vc)
         
         u_pi = self.a1 * self.u_1 + self.b0 * e + self.b1 * self.e_1
+        if u_pi > 1: u_pi = 1
+        elif u_pi < 0: u_pi = 0
+        
         self.e_1 = e
         self.u_1 = u_pi
         
@@ -49,32 +96,33 @@ class PI:
 
 class PID:
 
-    def __init__(self, pid_params):
+    def __init__(self):
 
-        #self.kp = pi_params['kp']
-        #self.ki = pi_params['ki']
-        #self.dt = pi_params['dt']
+        # Controller parameters
+        self.dt = None
 
-        self.set_params(pid_params)
+        # Gains
+        self.kp = None
+        self.ki = None
+        self.kd = None
+        self.N = None
 
+        # Controlle states
         self.e_1 = 0
         self.e_2 = 0
         self.u_1 = 0
         self.u_2 = 0
         
 
-    def set_params(self, pid_params):
-        self.kp = pid_params['kp']
-        self.ki = pid_params['ki']
-        self.kd = pid_params['kd']
-        self.N = pid_params['N']
-        self.dt = pid_params['dt']
-        self.sat = pid_params['sat']
+    def _set_params(self, kp, ki, kd, N, dt):
 
-        kp = self.kp
-        ki = self.ki
-        kd = self.kd
-        N = self.N
+        self.dt = dt
+
+        self.kp = kp
+        self.ki = ki
+        self.kd = kd
+        self.N = N
+
         T = 2 / self.dt
 
         self.a0 = T**2 + T * N
@@ -84,67 +132,48 @@ class PID:
         self.b0 = (T**2 * (kp + N*kd) + T * (ki + N*kp) + N*ki) / self.a0
         self.b1 = (2 * (N + ki - T**2 * (kp + N*kd))) / self.a0
         self.b2 = (T**2 * (kp + N*kd) - T * (ki + N*kp) + N*ki) / self.a0
-        
-        #a = self.kp + self.N * self.kd
-        #b = self.ki + self.N * self.kp
-        #c = self.N * self.ki
-
-        #self.a1 = -(self.dt * self.N - 2)
-        #self.a2 = -(1 - self.dt * self.N)
-        #self.b0 = a
-        #self.b1 = self.dt * b - 2 * a
-        #self.b2 = a**2 + self.dt**2 * c - self.dt * b
-
+    
 
     def set_initial_conditions(self, u_1=0, u_2=0, e=0, e_1=0, e_2=0):
+        
         self.u_1 = u_1
         self.u_2 = u_2
         self.e = e
         self.e_1 = e_1
         self.e_2 = e_2
 
-    
-    def control(self, x, u, ref):
+
+    def meas(self, signals, i, j):
+
+        vc = signals._x[i, 1]
+        ref = signals.v_ref[j]
+
+        sigs = [vc, ref]
+
+        return sigs
+
         
-        e = (ref - x[1])
+    def control(self, sigs):
+
+        vc = sigs[0]
+        ref = sigs[1]
+        
+        e = (ref - vc)
         
         u_pid = -self.a1 * self.u_1 - self.a2 * self.u_2 + self.b0 * e + self.b1 * self.e_1 + self.b2 * self.e_2
-
-        if self.sat is True:
-            if u_pid > 1:
-                u_pid = 1
-            elif u_pid < 0:
-                u_pid = 0
+        if u_pid > 1:
+            u_pid = 1
+        elif u_pid < 0:
+            u_pid = 0
 
         self.e_2 = self.e_1
         self.e_1 = e
         self.u_2 = self.u_1
         self.u_1 = u_pid
-
-        #print(u_pid, self.u_1, self.u_2, e, self.e_1, self.e_2)
         
         return u_pid
 
-        
-class OL:
-
-    def __init__(self, ol_params):
-        self.dc = ol_params['dc']
-
-
-    def set_params(self, ol_params):
-        self.dc = ol_params['dc']
-
-
-    def set_initial_conditions(self, ini_conditions):
-        self.dc = ini_conditions['dc']
-
-
-    def control(self, x, u, ref):
-
-        return self.dc
-
-
+    
 class MPC:
 
     def __init__(self, mpc_params):

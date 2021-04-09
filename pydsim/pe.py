@@ -24,6 +24,8 @@ class Buck:
         self.filter = None
         #self.filter = self.init_filter()
 
+        self.ctlparams = None
+
 
     def set_sim_params(self, dt, t_sim):
         self.sim_params._set_step(dt)
@@ -62,58 +64,64 @@ class Buck:
         self.ctlparams = params
 
     
-##    def set_controller(self, control, params):
-##        
-##        if control == 'pi':
-##            ctlparams = self.ctlparams
-##            ctlparams['dt'] =  self.t_pwm
-##            ctlini = {'e_1': v_ref[0] - x[0, 1], 'u_1': v_ref[0] / v_in[0]}
-##            ctl = pydctl.PI(ctlparams)
-##            #ctl.set_initial_conditions(ctlini)
-##            
-##        elif control == 'pid':
-##            ctlparams = self.ctlparams
-##            ctlparams['dt'] =  self.t_pwm
-##            #ctlini = {'e_1': v_ref[0] - x[0, 1], 'u_1': v_ref[0] / v_in[0]}
-##            ctl = pydctl.PID(ctlparams)
-##            if self.x_ini[0, 0] != 0 and self.x_ini[0, 1] != 0:
-##                ctl.set_initial_conditions(u_1=v_ref[0] / v_in[0], u_2=v_ref[0] / v_in[0])
-##            self.ctl = ctl
-##            
-##        elif control == 'mpc':
-##            ctlparams = self.ctlparams
-##            ctlparams['A'] = self.Am
-##            ctlparams['B'] = self.Bm
-##            ctlparams['C'] = self.Cm
-##            ctlparams['dt'] = n_pwm * self.dt
-##            ctlparams['v_in'] = v_in[0]
-##            ctl = pydctl.MPC(ctlparams)
-##            self.ctl = ctl
-##
-##        elif control == 'dmpc':
-##            ctlparams = self.ctlparams
-##            ctlparams['v_in'] = v_in[0]
-##            ctlparams['A'] = self.Am
-##            ctlparams['B'] = self.Bm
-##            ctlparams['C'] = self.Cm
-##            ctlparams['dt'] = n_pwm * self.dt
-##            ctl = pydctl.DMPC(ctlparams)
-##            #ctl.u_1 = 0.5
-##            #ctl.x_1 = self.x_ini[0]
-##            self.ctl = ctl
-##
-##        elif control == 'sfb':
-##            poles = self.ctlparams['poles']
-##            ctl = pydctl.SFB()
-##            ctl._set_params(Am, Bm, Cm, poles, v_in[0], t_pwm)
-##            
-##        else:
-##            ctlparams = {'dc': v_ref[0] / v_in[0]}
-##            ctlini = {'dc': v_ref[0] / v_in[0]}
-##            ctl = pydctl.OL(ctlparams)
-##            ctl.set_initial_conditions(ctlini)
-##
-##        return ctl
+    def set_controller(self, control, params):
+        
+        # Control
+        if control == 'pi':
+            t_pwm = self.circuit.t_pwm
+            kp = params['kp']
+            ki = params['ki']
+            ctl = pydctl.PI()
+            ctl._set_params(kp, ki, t_pwm)
+            
+        elif control == 'pid':
+            t_pwm = self.circuit.t_pwm
+            ki = params['ki']
+            kp = params['kp']
+            kd = params['kd']
+            N = params['N']
+            ctl = pydctl.PID()
+            ctl._set_params(kp, ki, kd, N, t_pwm)   
+            
+        elif control == 'mpc':
+            ctlparams = self.ctlparams
+            ctlparams['A'] = self.Am
+            ctlparams['B'] = self.Bm
+            ctlparams['C'] = self.Cm
+            ctlparams['dt'] = n_pwm * self.dt
+            ctlparams['v_in'] = v_in[0]
+            ctl = pydctl.MPC(ctlparams)
+            self.ctl = ctl
+
+        elif control == 'dmpc':
+            ctlparams = self.ctlparams
+            ctlparams['v_in'] = v_in[0]
+            ctlparams['A'] = self.Am
+            ctlparams['B'] = self.Bm
+            ctlparams['C'] = self.Cm
+            ctlparams['dt'] = n_pwm * self.dt
+            ctl = pydctl.DMPC(ctlparams)
+            #ctl.u_1 = 0.5
+            #ctl.x_1 = self.x_ini[0]
+            self.ctl = ctl
+
+        elif control == 'sfb':
+            t_pwm = self.circuit.t_pwm
+            A, B, C = self.model.A, self.model.B, self.model.C
+            v_in = self.signals.v_in[0]
+            poles = params['poles']
+            ctl = pydctl.SFB()
+            ctl._set_params(A, B, C, poles, v_in, t_pwm)
+            
+        else:
+            v_ref = self.signals.v_ref[0]
+            v_in = self.signals.v_in[0]
+            d = v_ref / v_in
+            ctl = pydctl.OL()
+            ctl._set_params(d)
+
+        return ctl
+
 ##    def init_filter(self):
 ##        wp = self.__filter_wp
 ##        Hwp = self.__filter_Hwp
@@ -170,56 +178,7 @@ class Buck:
         sig._x[0, :] = sig.x_ini[:]
 
         # --- Set control ---
-        # Control
-        if control == 'pi':
-            ctlparams = self.ctlparams
-            ctlparams['dt'] =  self.t_pwm
-            ctlini = {'e_1': v_ref[0] - x[0, 1], 'u_1': v_ref[0] / v_in[0]}
-            ctl = pydctl.PI(ctlparams)
-            #ctl.set_initial_conditions(ctlini)
-            
-        elif control == 'pid':
-            ctlparams = self.ctlparams
-            ctlparams['dt'] =  self.t_pwm
-            #ctlini = {'e_1': v_ref[0] - x[0, 1], 'u_1': v_ref[0] / v_in[0]}
-            ctl = pydctl.PID(ctlparams)
-            if self.x_ini[0, 0] != 0 and self.x_ini[0, 1] != 0:
-                ctl.set_initial_conditions(u_1=v_ref[0] / v_in[0], u_2=v_ref[0] / v_in[0])
-            self.ctl = ctl
-            
-        elif control == 'mpc':
-            ctlparams = self.ctlparams
-            ctlparams['A'] = self.Am
-            ctlparams['B'] = self.Bm
-            ctlparams['C'] = self.Cm
-            ctlparams['dt'] = n_pwm * self.dt
-            ctlparams['v_in'] = v_in[0]
-            ctl = pydctl.MPC(ctlparams)
-            self.ctl = ctl
-
-        elif control == 'dmpc':
-            ctlparams = self.ctlparams
-            ctlparams['v_in'] = v_in[0]
-            ctlparams['A'] = self.Am
-            ctlparams['B'] = self.Bm
-            ctlparams['C'] = self.Cm
-            ctlparams['dt'] = n_pwm * self.dt
-            ctl = pydctl.DMPC(ctlparams)
-            #ctl.u_1 = 0.5
-            #ctl.x_1 = self.x_ini[0]
-            self.ctl = ctl
-
-        elif control == 'sfb':
-            poles = self.ctlparams['poles']
-            ctl = pydctl.SFB()
-            ctl._set_params(Am, Bm, Cm, poles, v_in[0], t_pwm)
-            
-        else:
-            ctlparams = {'dc': v_ref[0] / v_in[0]}
-            ctlini = {'dc': v_ref[0] / v_in[0]}
-            ctl = pydctl.OL(ctlparams)
-            ctl.set_initial_conditions(ctlini)
-
+        ctl = self.set_controller(control, self.ctlparams)
 
         # --- Sim ---
         # Triangle reference for PWM
