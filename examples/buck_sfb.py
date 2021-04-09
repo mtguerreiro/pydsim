@@ -45,7 +45,7 @@ v_ref_p = v_ref * np.ones(buck.n_cycles)
 ##v_ref_p[t_f:] = v_ref + v_in_step
 ###v_ref_p = 5 + np.sin(2 * np.pi * 500 * t_pwm * np.arange(buck.n_cycles))
 
-pid_params = {'ki': 25000, 'kd': 0.001, 'kp': 2.5, 'N': 20000, 'sat': True}
+pid_params = {'ki': 10000, 'kd': 0.0001, 'kp': 0.75, 'N': 50000, 'sat': True}
 buck.set_ctlparams(pid_params)
 buck.sim(v_ref=v_ref_p, v_in=v_in_p, control='pid')
 t_pi = buck.t
