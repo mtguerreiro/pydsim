@@ -69,8 +69,7 @@ class Buck:
         # Control
         if control == 'pi':
             t_pwm = self.circuit.t_pwm
-            kp = params['kp']
-            ki = params['ki']
+            kp, ki = params['kp'], params['ki']
             ctl = pydctl.PI()
             ctl._set_params(kp, ki, t_pwm)
             
@@ -94,16 +93,19 @@ class Buck:
             self.ctl = ctl
 
         elif control == 'dmpc':
-            ctlparams = self.ctlparams
-            ctlparams['v_in'] = v_in[0]
-            ctlparams['A'] = self.Am
-            ctlparams['B'] = self.Bm
-            ctlparams['C'] = self.Cm
-            ctlparams['dt'] = n_pwm * self.dt
-            ctl = pydctl.DMPC(ctlparams)
+            t_pwm = self.circuit.t_pwm
+            A, B, C = self.model.A, self.model.B, self.model.C
+            v_in = self.signals.v_in[0]
+            n_c, n_p, r_w = params['n_c'], params['n_p'], params['r_w']
+            if 'ref' in params:
+                ref = params['ref']
+            else:
+                ref = None
+            ctl = pydctl.DMPC()
+            ctl._set_params(A, B, C, t_pwm, v_in, n_p, n_c, r_w, ref)
             #ctl.u_1 = 0.5
             #ctl.x_1 = self.x_ini[0]
-            self.ctl = ctl
+            #self.ctl = ctl
 
         elif control == 'sfb':
             t_pwm = self.circuit.t_pwm
@@ -156,8 +158,8 @@ class Buck:
         n_cycles = round(t_sim / t_pwm)
 
         # Signals of the converter
-        signals = self.signals
-        signals._set_vectors(dt, t_pwm, t_sim)
+        #signals = self.signals
+        #signals._set_vectors(dt, t_pwm, t_sim)
 
         # --- Sets reference and input voltage ---
         if type(v_ref) is int or type(v_ref) is float:
@@ -269,7 +271,7 @@ class Buck:
 
         def __init__(self):
 
-            self.x_ini = np.array([0, 0])
+            self.x_ini = np.array([0.0, 0.0])
             self.t = None
             self.t_p = None
             self.x = None

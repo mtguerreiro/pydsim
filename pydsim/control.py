@@ -269,57 +269,134 @@ class MPC:
 
 class DMPC:
 
-    def __init__(self, dmpc_params):
-        dt = dmpc_params['dt']
-        v_in = dmpc_params['v_in']
-        Am = dmpc_params['A']
-        Bm = dmpc_params['B'] * v_in
-        Cm = dmpc_params['C']
-        self.Am = Am; self.Bm = Bm; self.Cm = Cm; self.dt = dt; self.v_in = v_in
+    def __init__(self):
 
-        n_p = dmpc_params['n_p']
-        n_c = dmpc_params['n_c']
-        r_w = dmpc_params['r_w']
-        self.n_p = n_p; self.n_c = n_c; self.r_w = r_w
+        # Controller parameters
+        self.dt = None
+        self.v_in = None
 
-        Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((Am, Bm, Cm, 0), dt, method='bilinear')
-        self.Ad = Ad; self.Bd = Bd; self.Cd = Cd
+        # Model - continuous and discrete
+        self.Am = None
+        self.Bm = None
+        self.Cm = None
 
+        self.Ad = None
+        self.Bd = None
+        self.Cd = None
+
+        # MPC params and gains
+        self.n_p = None
+        self.n_c = None
+        self.r_w = None
+
+        self.K_x = None
+        self.K_y = None
+        self.M = None
+
+        # Reference and index for changing reference
+        self.ref = None
         self.__i = 0
 
-        try:
-            n_ref = dmpc_params['ref'].shape[0]
-            ref = np.zeros(n_ref + n_p)
-            ref[:n_ref] = dmpc_params['ref']
-            ref[n_ref:] = dmpc_params['ref'][-1]           
-            self.ref = ref
-        except:
-            ref = None
-            self.ref = ref
+        # Controller states
+        self.u_1 = None
+        self.x_1 = None
 
+##        Am = dmpc_params['A']
+##        Bm = dmpc_params['B'] * v_in
+##        Cm = dmpc_params['C']
+##        self.Am = Am; self.Bm = Bm; self.Cm = Cm; self.dt = dt; self.v_in = v_in
+
+##        n_p = dmpc_params['n_p']
+##        n_c = dmpc_params['n_c']
+##        r_w = dmpc_params['r_w']
+##        self.n_p = n_p; self.n_c = n_c; self.r_w = r_w
+
+#        Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((Am, Bm, Cm, 0), dt, method='bilinear')
+#        self.Ad = Ad; self.Bd = Bd; self.Cd = Cd
+
+##        # Index for changing reference
+##        self.__i = 0
+
+##        try:
+##            n_ref = dmpc_params['ref'].shape[0]
+##            ref = np.zeros(n_ref + n_p)
+##            ref[:n_ref] = dmpc_params['ref']
+##            ref[n_ref:] = dmpc_params['ref'][-1]           
+##            self.ref = ref
+##        except:
+##            ref = None
+##            self.ref = ref
+##
+##        if ref is None:
+##            self.dmpc_sys = ctl.mpc.System(Ad, Bd, Cd, n_p=n_p, n_c=n_c, r_w=r_w)
+##            Ky, Kmpc = self.dmpc_sys.opt_cl_gains()
+##            Kx = Kmpc[0, :-1]
+##            self.K_y = Kmpc[0, -1]
+##            self.K_x = Kx
+##        else:
+##            dmpc_sys = ctl.mpc.System(Ad, Bd, Cd, n_p=n_p, n_c=n_c, r_w=r_w)
+##            self.dmpc_sys = dmpc_sys
+##            F, Phi = ctl.mpc.opt_matrices(dmpc_sys.A, dmpc_sys.B, dmpc_sys.C, n_p, n_c)
+##            R_bar = r_w * np.eye(n_c)
+##            M = np.linalg.inv(Phi.T @ Phi + R_bar) @ Phi.T
+##            self.M = M[0, :]
+##            Ky, Kmpc = self.dmpc_sys.opt_cl_gains()
+##            Kx = Kmpc[0, :-1]
+##            self.K_x = Kx
+##            self.K_y = Kmpc[0, -1]
+##
+##        self.x_1 = np.array([0, 0])
+##        self.u_1 = 0
+        
+
+    def _set_params(self, A, B, C, dt, v_in, n_p, n_c, r_w, ref=None):
+        
+        self.v_in = v_in
+        self.Am, self.Bm, self.Cm = A, B * v_in, C
+
+        self.dt = dt
+        Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((A, B, C, 0), dt, method='bilinear')
+        self.Ad, self.Bd, self.Cd = Ad, Bd, Cd
+
+        self.n_p, self.n_c, self.r_w = n_p, n_c, r_w
+        
+        # Sets MPC gains depending on ref
+        dmpc_sys = ctl.mpc.System(Ad, Bd, Cd, n_p=n_p, n_c=n_c, r_w=r_w)
         if ref is None:
-            self.dmpc_sys = ctl.mpc.System(Ad, Bd, Cd, n_p=n_p, n_c=n_c, r_w=r_w)
-            Ky, Kmpc = self.dmpc_sys.opt_cl_gains()
-            Kx = Kmpc[0, :-1]
+            self.ref = None
+            self.__i = None
+            Ky, Kmpc = dmpc_sys.opt_cl_gains()
+            self.K_x = Kmpc[0, :-1]
             self.K_y = Kmpc[0, -1]
-            self.K_x = Kx
         else:
-            dmpc_sys = ctl.mpc.System(Ad, Bd, Cd, n_p=n_p, n_c=n_c, r_w=r_w)
-            self.dmpc_sys = dmpc_sys
+            self.ref = ref
+            self.__i = 0
             F, Phi = ctl.mpc.opt_matrices(dmpc_sys.A, dmpc_sys.B, dmpc_sys.C, n_p, n_c)
             R_bar = r_w * np.eye(n_c)
             M = np.linalg.inv(Phi.T @ Phi + R_bar) @ Phi.T
             self.M = M[0, :]
-            Ky, Kmpc = self.dmpc_sys.opt_cl_gains()
-            Kx = Kmpc[0, :-1]
-            self.K_x = Kx
+            Ky, Kmpc = dmpc_sys.opt_cl_gains()
+            self.K_x = Kmpc[0, :-1]
             self.K_y = Kmpc[0, -1]
 
-        self.x_1 = np.array([0, 0])
-        self.u_1 = 0
+        self.x_1 = np.array([0.0, 0.0])
+        self.u_1 = 0.0
+        
 
+    def meas(self, signals, i, j):
 
-    def control(self, x, u, ref):
+        x = signals._x[i]
+        ref = signals.v_ref[j]
+
+        sigs = [x, ref]
+
+        return sigs
+
+    
+    def control(self, sigs):
+
+        x = sigs[0]
+        ref = sigs[1]
 
         if self.ref is None:
             dx = (x - self.x_1)

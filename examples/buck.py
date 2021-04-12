@@ -16,21 +16,21 @@ v_ref = 6.6
 # Sim time
 t_sim = 20e-3
 
-# PWM period
-t_pwm = 1/200e3
+# PWM frequency
+f_pwm = 200e3
 
-# Number of points per cycle
-n_pwm = 200
+# Step size for simulation
+dt = 1 / f_pwm / 500
 
 # --- Simulation ---
 buck = pyd.pe.Buck(R, L, C)
-buck.set_pwm(t_pwm, n_pwm)
-buck.set_sim_time(t_sim)
+buck.set_f_pwm(f_pwm)
+buck.set_sim_params(dt, t_sim)
 buck.set_initial_conditions(0.5, 6)
 
 buck.sim(v_ref=v_ref, v_in=v_in)
-t = buck.t
-x = buck.x
+t = buck.signals.t
+x = buck.signals.x
 
 # --- Results ---
 plt.figure(figsize=(10,6))
