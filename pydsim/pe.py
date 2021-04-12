@@ -82,16 +82,19 @@ class Buck:
             ctl = pydctl.PID()
             ctl._set_params(kp, ki, kd, N, t_pwm)   
             
-        elif control == 'mpc':
-            ctlparams = self.ctlparams
-            ctlparams['A'] = self.Am
-            ctlparams['B'] = self.Bm
-            ctlparams['C'] = self.Cm
-            ctlparams['dt'] = n_pwm * self.dt
-            ctlparams['v_in'] = v_in[0]
-            ctl = pydctl.MPC(ctlparams)
-            self.ctl = ctl
-
+        elif control == 'smpc':
+            t_pwm = self.circuit.t_pwm
+            A, B, C = self.model.A, self.model.B, self.model.C
+            v_in = self.signals.v_in[0]
+            n_step = params['n_step']
+            alpha, beta, il_max = params['alpha'], params['beta'], params['il_max']
+            if 'ref' in params:
+                ref = params['ref']
+            else:
+                ref = None
+            ctl = pydctl.SMPC()
+            ctl._set_params(A, B, C, t_pwm, v_in, n_step, alpha=alpha, beta=beta, il_max=il_max, ref=ref)
+            
         elif control == 'dmpc':
             t_pwm = self.circuit.t_pwm
             A, B, C = self.model.A, self.model.B, self.model.C

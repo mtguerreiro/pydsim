@@ -174,49 +174,91 @@ class PID:
         return u_pid
 
     
-class MPC:
+class SMPC:
 
-    def __init__(self, mpc_params):
-        self.dt = mpc_params['dt']
-        v_in = mpc_params['v_in']
-        self.A = mpc_params['A']
-        self.B = mpc_params['B'] * v_in
-        self.C = mpc_params['C']
+    def __init__(self):
 
-        self.alpha = mpc_params['alpha']
-        self.beta = mpc_params['beta']
+        # Controller parameters
+        self.dt = None
+        self.v_in = None
 
-        try:
-            n_ref = mpc_params['ref'].shape[0]
-            ref = np.zeros(n_ref + mpc_params['n_step'])
-            ref[:n_ref] = mpc_params['ref']
-            ref[n_ref:] = mpc_params['ref'][-1]
-            self.ref = ref
-        except:
-            self.ref = None
+        # Model - continuous and discrete
+        self.Am = None
+        self.Bm = None
+        self.Cm = None
+
+        self.Ad = None
+        self.Bd = None
+        self.Cd = None
+
+        # Controller parameters
+        self.n_p = None
+        self.alpha = None
+        self.beta = None
+        self.il_max = None
+
+        # Reference and index for changing reference
+        self.ref = None
+        self.__i = 0
+        
+##        self.dt = mpc_params['dt']
+##        v_in = mpc_params['v_in']
+##        self.A = mpc_params['A']
+##        self.B = mpc_params['B'] * v_in
+##        self.C = mpc_params['C']
+##
+##       self.alpha = mpc_params['alpha']
+##       self.beta = mpc_params['beta']
+
+##        try:
+##            n_ref = mpc_params['ref'].shape[0]
+##            ref = np.zeros(n_ref + mpc_params['n_step'])
+##            ref[:n_ref] = mpc_params['ref']
+##            ref[n_ref:] = mpc_params['ref'][-1]
+##            self.ref = ref
+##        except:
+##            self.ref = None
         
         #self.ref = mpc_params['ref']
 
-        try:
-            self.il_max = mpc_params['il_max']
-        except:
-            self.il_max = np.inf
+##        try:
+##            self.il_max = mpc_params['il_max']
+##        except:
+##            self.il_max = np.inf
 
-        self.n_step = mpc_params['n_step']
+##        self.n_step = mpc_params['n_step']
 
-        self.set_model(self.A, self.B, self.C, self.dt)
+##        self.set_model(self.A, self.B, self.C, self.dt)
 
-        self.__i = 0
+##        self.__i = 0
 
 
-    def set_model(self, A, B, C, dt):
-        #self.Ad = np.eye(2) + dt * A
-        #self.Bd = dt * B
-        self.Ad, self.Bd, self.Cd, _, _ = scipy.signal.cont2discrete((A, B, C, 0), dt, method='bilinear')
-    
+    def _set_params(self, A, B, C, dt, v_in, n_p, alpha=1, beta=0, il_max=np.inf, ref=None):
+        
+        self.v_in = v_in
+        self.Am, self.Bm, self.Cm = A, B * v_in, C
+
+        self.dt = dt
+        Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((A, B * v_in, C, 0), dt, method='bilinear')
+        self.Ad, self.Bd, self.Cd = Ad, Bd, Cd
+
+        self.n_p = n_p
+        self.alpha, self.beta, self.il_max = alpha, beta, il_max
+        
+        if ref is None:
+            self.ref = None
+            self.__i = None
+        else:
+            n_ref = ref.shape[0]
+            _ref = np.zeros(n_ref + n_p)
+            _ref[:n_ref] = ref
+            _ref[n_ref:] = ref[-1]
+            self.ref = _ref
+            self.__i = 0
+        
 
     def pred_cost(self, x, u, ref):
-        
+
         x_u_1 = self.Ad @ x + self.Bd * u
         if np.abs(x_u_1[0, 0]) >= self.il_max:
             j_u_1 = np.inf
@@ -226,16 +268,16 @@ class MPC:
         return x_u_1, j_u_1
     
     
-    def opt(self, x, u, ref, n_step):
+    def opt(self, x, ref, n_p):
         
         x_u_0, j_u_0 = self.pred_cost(x, 0, ref[0])
-        if n_step != 1:
-            u_0_opt, j_0_opt = self.opt(x_u_0, 1, ref[1:], n_step - 1)
+        if n_p != 1:
+            u_0_opt, j_0_opt = self.opt(x_u_0, ref[1:], n_p - 1)
             j_u_0 += j_0_opt
 
         x_u_1, j_u_1 = self.pred_cost(x, 1, ref[0])
-        if n_step != 1:
-            u_1_opt, j_1_opt = self.opt(x_u_1, 1, ref[1:], n_step - 1)
+        if n_p != 1:
+            u_1_opt, j_1_opt = self.opt(x_u_1, ref[1:], n_p - 1)
             j_u_1 += j_1_opt
 
         if j_u_0 < j_u_1:
@@ -243,26 +285,36 @@ class MPC:
             u_opt = 0
         else:
             j_opt = j_u_1
-            u_opt = u
+            u_opt = 1
         
         return u_opt, j_opt
 
 
-    def control(self, x, u, ref):
+    def meas(self, signals, i, j):
 
-        x = x.reshape(-1, 1)
+        x = signals._x[i]
+        ref = signals.v_ref[j]
+
+        sigs = [x, ref]
+
+        return sigs
+
+
+    def control(self, sigs):
+
+        x = sigs[0].reshape(-1, 1)
+        ref = sigs[1]
 
         if self.ref is None:
-            vref = np.zeros(self.n_step)
+            vref = np.zeros(self.n_p)
             vref[:] = ref
         else:
             i_i = self.__i
-            i_f = self.__i + self.n_step
+            i_f = self.__i + self.n_p
             vref = self.ref[i_i:i_f]
             self.__i += 1
 
-        #print(vref)
-        u_opt, j_opt = self.opt(x, u, vref, self.n_step)
+        u_opt, j_opt = self.opt(x, vref, self.n_p)
         
         return u_opt
 
