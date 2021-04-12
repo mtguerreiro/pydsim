@@ -308,7 +308,7 @@ class DMPC:
         self.Am, self.Bm, self.Cm = A, B * v_in, C
 
         self.dt = dt
-        Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((A, B, C, 0), dt, method='bilinear')
+        Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((A, B * v_in, C, 0), dt, method='bilinear')
         self.Ad, self.Bd, self.Cd = Ad, Bd, Cd
 
         self.n_p, self.n_c, self.r_w = n_p, n_c, r_w

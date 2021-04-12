@@ -31,7 +31,7 @@ buck.set_sim_params(dt, t_sim)
 t_pwm = 1 / f_pwm
 n = round(t_sim * f_pwm)
 v_in_p = v_in * np.ones(n)
-#v_in_p[int(buck.n_cycles / 2):] = v_in + v_in_step
+##v_in_p[int(n / 2):] = v_in + v_in_step
 
 ##v_ref_p = v_ref * np.ones(n)
 ##v_ref_p[int(n / 2):] = v_ref  + v_in_step
@@ -48,7 +48,7 @@ t_pi = buck.signals.t
 x_pi = buck.signals.x
 u_pi = buck.signals.d
 
-dmpc_params = {'n_c': 30, 'n_p': 30, 'r_w': 10}#, 'ref': v_ref_p}
+dmpc_params = {'n_c': 30, 'n_p': 30, 'r_w': 500, 'ref': v_ref_p}
 buck.set_ctlparams(dmpc_params)
 buck.sim(v_ref=v_ref_p, v_in=v_in_p, control='dmpc')
 t_dmpc = buck.signals.t
