@@ -33,22 +33,22 @@ buck.set_sim_time(t_sim)
 v_in_p = v_in * np.ones(buck.n_cycles)
 #v_in_p[int(buck.n_cycles / 2):] = v_in + v_in_step
 
-v_ref_p = v_ref * np.ones(buck.n_cycles)
-v_ref_p[int(buck.n_cycles / 2):] = v_ref  + v_in_step
-t_i = int(4e-3 / t_pwm)
-t_f = int(4.5e-3 / t_pwm)
-v_ref_p[t_i:t_f] = np.arange(v_ref, v_ref + v_in_step, v_in_step / (t_f - t_i))
-v_ref_p[t_f:] = v_ref + v_in_step
-#v_ref_p = 5 + np.sin(2 * np.pi * 500 * t_pwm * np.arange(buck.n_cycles))
+##v_ref_p = v_ref * np.ones(buck.n_cycles)
+##v_ref_p[int(buck.n_cycles / 2):] = v_ref  + v_in_step
+##t_i = int(4e-3 / t_pwm)
+##t_f = int(4.5e-3 / t_pwm)
+##v_ref_p[t_i:t_f] = np.arange(v_ref, v_ref + v_in_step, v_in_step / (t_f - t_i))
+##v_ref_p[t_f:] = v_ref + v_in_step
+v_ref_p = 5 + np.sin(2 * np.pi * 500 * t_pwm * np.arange(buck.n_cycles))
 
-pid_params = {'ki': 25000, 'kd': 0.001, 'kp': 2.5, 'N': 20000, 'sat': True}
+pid_params = {'ki': 10000, 'kd': 0.0001, 'kp': 0.75, 'N': 50000, 'sat': True}
 buck.set_ctlparams(pid_params)
 buck.sim(v_ref=v_ref_p, v_in=v_in_p, control='pid')
 t_pi = buck.t
 x_pi = buck.x
 u_pi = buck.u
 
-dmpc_params = {'n_c': 30, 'n_p': 30, 'r_w': 1000 / 10 ** 2, 'ref': v_ref_p}
+dmpc_params = {'n_c': 30, 'n_p': 30, 'r_w': 50000 / 10 ** 2, 'ref': v_ref_p}
 buck.set_ctlparams(dmpc_params)
 buck.sim(v_ref=v_ref_p, v_in=v_in_p, control='dmpc')
 t_dmpc = buck.t
