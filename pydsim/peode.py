@@ -28,7 +28,7 @@ class Buck:
         self.ctlparams = None
 
 
-    def set_sim_params(self, dt, t_sim, dt_max):
+    def set_sim_params(self, dt, t_sim, dt_max=1e-6):
         self.sim_params._set_step(dt)
         self.sim_params._set_t_sim(t_sim)
         self.sim_params._set_max_step(dt_max)
@@ -327,11 +327,11 @@ class Buck:
 
     class __SimParams:
 
-        def __init__(self, dt=None, t_sim=None, dt_max=None):
+        def __init__(self, dt=None, t_sim=None, dt_max=1e-6):
             
-            self.dt = None
-            self.t_sim = None
-            self.dt_max = None
+            self.dt = dt
+            self.t_sim = t_sim
+            self.dt_max = dt_max
 
             
         def _set_step(self, dt):
