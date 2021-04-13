@@ -21,12 +21,13 @@ t_sim = 8e-3
 f_pwm = 200e3
 
 # Step size for simulation
-dt = 1 / f_pwm / 500
+dt_max = 1e-6
+dt = 1 / f_pwm / 100
 
 # --- Simulation ---
-buck = pyd.pe.Buck(R, L, C)
+buck = pyd.peode.Buck(R, L, C)
 buck.set_f_pwm(f_pwm)
-buck.set_sim_params(dt, t_sim)
+buck.set_sim_params(dt, t_sim, dt_max)
 
 t_pwm = 1 / f_pwm
 n = round(t_sim * f_pwm)

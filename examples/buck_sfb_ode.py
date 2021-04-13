@@ -15,22 +15,23 @@ v_in_step = -3
 v_ref = 5
 
 # Sim time
-t_sim = 5e-3
+t_sim = 2e-3
 
 # PWM frequency
 f_pwm = 200e3
 
 # Step size for simulation
-dt = 1 / f_pwm / 500
+dt_max = 1e-6
+dt = 1 / f_pwm / 50
 
 # Specs for state feedback
 Ts = 0.5e-3
 os = 5/100
 
 # --- Simulation ---
-buck = pyd.pe.Buck(R, L, C)
+buck = pyd.peode.Buck(R, L, C)
 buck.set_f_pwm(f_pwm)
-buck.set_sim_params(dt, t_sim)
+buck.set_sim_params(dt, t_sim, dt_max)
 
 n = round(t_sim * f_pwm)
 v_in_p = v_in * np.ones(n)
