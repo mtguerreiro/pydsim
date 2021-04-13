@@ -520,12 +520,12 @@ class SFB2:
         self.Ba = None
 
         # Gains
-        self.Kx = None
-        self.Ky = None
+        self.K_x = None
 
         # Controlle states
         self.e_1 = 0
         self.zeta_1 = 0
+
 
     def _set_params(self, A, B, C, poles, v_in, dt):
 
@@ -538,8 +538,8 @@ class SFB2:
         self.C = C
         
         # Ackermann
-        Kx = self._acker(A, B, poles)
-        self.Kx = Kx
+        K_x = self._acker(A, B * v_in, poles)
+        self.K_x = K_x
 
 
     def _aug_model(self, A, B, C):
@@ -564,14 +564,14 @@ class SFB2:
 
         Phi_d = c_eq[0] * Aa @ Aa + c_eq[1] * Aa + c_eq[2] * np.eye(2)
 
-        Kx = np.array([[0, 1]]) @ np.linalg.inv(Mc) @ Phi_d
+        K_x = np.array([[0, 1]]) @ np.linalg.inv(Mc) @ Phi_d
 
-        return Kx
+        return K_x
 
 
     def meas(self, signals, i, j):
         x = signals._x[i]
-        r = signals.v_ref[j] / signals.v_in[j]
+        r = signals.v_ref[0] / signals.v_in[0]
 
         sigs = [x, r]
         
@@ -582,7 +582,7 @@ class SFB2:
         x = sigs[0]
         r = sigs[1]
         
-        u_sfb = -self.Kx @ x + 0.5
+        u_sfb = -self.K_x @ x + r
                 
         return u_sfb
 

@@ -24,13 +24,14 @@ f_pwm = 200e3
 dt = 1 / f_pwm / 500
 
 # Specs for state feedback
-Ts = 2e-3
+Ts = 0.5e-3
 os = 15/100
 
 # --- Simulation ---
 buck = pyd.pe.Buck(R, L, C)
 buck.set_f_pwm(f_pwm)
 buck.set_sim_params(dt, t_sim)
+#buck.set_initial_conditions(1, 1)
 
 n = round(t_sim * f_pwm)
 v_in_p = v_in * np.ones(n)
@@ -46,7 +47,7 @@ p2 = np.conj(p1)
 sfb_params = {'poles': [p1, p2]}
 buck.set_ctlparams(sfb_params)
 buck.sim(v_ref=v_ref, v_in=v_in_p, controller=pyd.control.SFB2)
-print(buck.ctl.Kx)
+print(buck.ctl.K_x)
 
 t_sfb = buck.signals.t
 x_sfb = buck.signals.x
