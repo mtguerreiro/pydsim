@@ -531,6 +531,93 @@ class SFB:
         return u_sfb
 
 
+class SFB2:
+    
+    def __init__(self):
+
+        # Controller parameters
+        self.dt = None
+        self.v_in = None
+
+        # Poles
+        self.poles = None
+
+        # Model and augmented model
+        self.A = None
+        self.B = None
+        self.C = None
+
+        self.Aa = None
+        self.Ba = None
+
+        # Gains
+        self.Kx = None
+        self.Ky = None
+
+        # Controlle states
+        self.e_1 = 0
+        self.zeta_1 = 0
+
+    def _set_params(self, A, B, C, poles, v_in, dt):
+
+        self.poles = poles
+        self.v_in = v_in
+        self.dt = dt
+
+        self.A = A
+        self.B = B * v_in
+        self.C = C
+        
+        # Ackermann
+        Kx = self._acker(A, B, poles)
+        self.Kx = Kx
+
+
+    def _aug_model(self, A, B, C):
+        
+        Aa = np.zeros((3,3))
+        Ba = np.zeros((3,1))        
+
+        Aa[:2, :2] = A
+        Aa[2, :2] = C
+        Ba[:2, 0] = B[:, 0]
+
+        return Aa, Ba
+
+
+    def _acker(self, Aa, Ba, p):
+
+        c_eq = np.polymul([1, -p[0]], [1, -p[1]]).real
+
+        Mc = np.zeros((2,2))
+        Mc[:, 0] = Ba[:, 0]
+        Mc[:, 1] = (Aa @ Ba)[:, 0]
+
+        Phi_d = c_eq[0] * Aa @ Aa + c_eq[1] * Aa + c_eq[2] * np.eye(2)
+
+        Kx = np.array([[0, 1]]) @ np.linalg.inv(Mc) @ Phi_d
+
+        return Kx
+
+
+    def meas(self, signals, i, j):
+        x = signals._x[i]
+        r = signals.v_ref[j] / signals.v_in[j]
+
+        sigs = [x, r]
+        
+        return sigs
+    
+
+    def control(self, sigs):
+        x = sigs[0]
+        r = sigs[1]
+        
+        u_sfb = -self.Kx @ x + 0.5
+                
+        return u_sfb
+
+    
 ##def set_controller(controller):
 ##    ctlrs = [c[1] for c in inspect.getmembers(sys.modules[__name__], inspect.isclass)]
 ##
