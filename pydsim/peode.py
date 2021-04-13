@@ -203,7 +203,7 @@ class Buck:
                     sig._x[i_s:i_sw, 0] = x_eval[0, :]
                     sig._x[i_s:i_sw, 1] = x_eval[1, :]
                 else:
-                    t_eval = sig.t[i_s:i_sw + 1]
+                    t_eval = t[i_s:i_sw + 1]
                     x_eval = sol.sol(t_eval)
                     sig._x[i_s:i_sw + 1, 0] = x_eval[0, :]
                     sig._x[i_s:i_sw + 1, 1] = x_eval[1, :]
