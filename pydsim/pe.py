@@ -59,74 +59,6 @@ class Buck:
 ##            self.init_filter()
 
 
-    def set_ctlparams(self, params):
-
-        self.ctlparams = params
-
-    
-    def set_controller(self, control, params):
-        
-        # Control
-        if control == 'pi':
-            t_pwm = self.circuit.t_pwm
-            kp, ki = params['kp'], params['ki']
-            ctl = pydctl.PI()
-            ctl._set_params(kp, ki, t_pwm)
-            
-        elif control == 'pid':
-            t_pwm = self.circuit.t_pwm
-            ki = params['ki']
-            kp = params['kp']
-            kd = params['kd']
-            N = params['N']
-            ctl = pydctl.PID()
-            ctl._set_params(kp, ki, kd, N, t_pwm)   
-            
-        elif control == 'smpc':
-            t_pwm = self.circuit.t_pwm
-            A, B, C = self.model.A, self.model.B, self.model.C
-            v_in = self.signals.v_in[0]
-            n_step = params['n_step']
-            alpha, beta, il_max = params['alpha'], params['beta'], params['il_max']
-            if 'ref' in params:
-                ref = params['ref']
-            else:
-                ref = None
-            ctl = pydctl.SMPC()
-            ctl._set_params(A, B, C, t_pwm, v_in, n_step, alpha=alpha, beta=beta, il_max=il_max, ref=ref)
-            
-        elif control == 'dmpc':
-            t_pwm = self.circuit.t_pwm
-            A, B, C = self.model.A, self.model.B, self.model.C
-            v_in = self.signals.v_in[0]
-            n_c, n_p, r_w = params['n_c'], params['n_p'], params['r_w']
-            if 'ref' in params:
-                ref = params['ref']
-            else:
-                ref = None
-            ctl = pydctl.DMPC()
-            ctl._set_params(A, B, C, t_pwm, v_in, n_p, n_c, r_w, ref)
-            #ctl.u_1 = 0.5
-            #ctl.x_1 = self.x_ini[0]
-            #self.ctl = ctl
-
-        elif control == 'sfb':
-            t_pwm = self.circuit.t_pwm
-            A, B, C = self.model.A, self.model.B, self.model.C
-            v_in = self.signals.v_in[0]
-            poles = params['poles']
-            ctl = pydctl.SFB()
-            ctl._set_params(A, B, C, poles, v_in, t_pwm)
-            
-        else:
-            v_ref = self.signals.v_ref[0]
-            v_in = self.signals.v_in[0]
-            d = v_ref / v_in
-            ctl = pydctl.OL()
-            ctl._set_params(d)
-
-        return ctl
-
 ##    def init_filter(self):
 ##        wp = self.__filter_wp
 ##        Hwp = self.__filter_Hwp
@@ -137,8 +69,69 @@ class Buck:
 ##        self.filter_num = self.filter.tfz_sos[0][0]
 ##        self.filter_den = self.filter.tfz_sos[1][0]
 
+
+    def set_ctlparams(self, params):
+
+        self.ctlparams = params
+
     
-    def sim(self, v_ref, v_in=None, control='ol'):
+    def set_controller(self, controller, params):
+        
+        # Control
+        ctl = controller()
+        if type(ctl) is pydctl.PI:
+            t_pwm = self.circuit.t_pwm
+            kp, ki = params['kp'], params['ki']
+            ctl._set_params(kp, ki, t_pwm)
+            
+        elif type(ctl) is pydctl.PID:
+            t_pwm = self.circuit.t_pwm
+            ki = params['ki']
+            kp = params['kp']
+            kd = params['kd']
+            N = params['N']
+            ctl._set_params(kp, ki, kd, N, t_pwm)   
+            
+        elif type(ctl) is pydctl.SMPC:
+            t_pwm = self.circuit.t_pwm
+            A, B, C = self.model.A, self.model.B, self.model.C
+            v_in = self.signals.v_in[0]
+            n_step = params['n_step']
+            alpha, beta, il_max = params['alpha'], params['beta'], params['il_max']
+            if 'ref' in params:
+                ref = params['ref']
+            else:
+                ref = None
+            ctl._set_params(A, B, C, t_pwm, v_in, n_step, alpha=alpha, beta=beta, il_max=il_max, ref=ref)
+            
+        elif type(ctl) is pydctl.DMPC:
+            t_pwm = self.circuit.t_pwm
+            A, B, C = self.model.A, self.model.B, self.model.C
+            v_in = self.signals.v_in[0]
+            n_c, n_p, r_w = params['n_c'], params['n_p'], params['r_w']
+            if 'ref' in params:
+                ref = params['ref']
+            else:
+                ref = None
+            ctl._set_params(A, B, C, t_pwm, v_in, n_p, n_c, r_w, ref)
+
+        elif type(ctl) is pydctl.SFB:
+            t_pwm = self.circuit.t_pwm
+            A, B, C = self.model.A, self.model.B, self.model.C
+            v_in = self.signals.v_in[0]
+            poles = params['poles']
+            ctl._set_params(A, B, C, poles, v_in, t_pwm)
+            
+        else:
+            v_ref = self.signals.v_ref[0]
+            v_in = self.signals.v_in[0]
+            d = v_ref / v_in
+            ctl._set_params(d)
+
+        return ctl
+
+    
+    def sim(self, v_ref, v_in=None, controller=pydctl.OL):
 
         #  --- Set model and params for simulation ---
         # Circuit params
@@ -160,10 +153,6 @@ class Buck:
         n_pwm = round(t_pwm / dt)
         n_cycles = round(t_sim / t_pwm)
 
-        # Signals of the converter
-        #signals = self.signals
-        #signals._set_vectors(dt, t_pwm, t_sim)
-
         # --- Sets reference and input voltage ---
         if type(v_ref) is int or type(v_ref) is float:
             v_ref = v_ref * np.ones(n_cycles)
@@ -183,7 +172,7 @@ class Buck:
         sig._x[0, :] = sig.x_ini[:]
 
         # --- Set control ---
-        ctl = self.set_controller(control, self.ctlparams)
+        ctl = self.set_controller(controller, self.ctlparams)
 
         # --- Sim ---
         # Triangle reference for PWM

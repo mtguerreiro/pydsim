@@ -44,14 +44,14 @@ p3 = 10 * p1.real
 
 sfb_params = {'poles': [p1, p2, p3]}
 buck.set_ctlparams(sfb_params)
-buck.sim(v_ref=v_ref, v_in=v_in_p, control='sfb')
+buck.sim(v_ref=v_ref, v_in=v_in_p, controller=pyd.control.SFB)
 
 t_sfb = buck.signals.t
 x_sfb = buck.signals.x
 u_sfb = buck.signals.d
 
 ##buck.set_f_pwm(f_pwm / 2)
-##buck.sim(v_ref=v_ref, v_in=v_in, control='sfb')
+##buck.sim(v_ref=v_ref, v_in=v_in, controller=pyd.control.SFB)
 ##t_sfb1 = buck.signals.t
 ##x_sfb1 = buck.signals.x
 ##u_sfb1 = buck.signals.d

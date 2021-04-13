@@ -15,100 +15,120 @@ import pynoise
 def buck_f(t, x, A, B, u):
     return A @ x + B * u
 
+
 class Buck:
 
-    def __init__(self, R, L, C):
+    def __init__(self, R, L, C, f_pwm=None):
 
-        self.R = R
-        self.L = L
-        self.C = C
+        self.circuit = self.__Circuit(R, L, C, f_pwm)
+        self.model = self.__Model()
+        self.sim_params = self.__SimParams()
+        self.signals = self.__Signals()
 
-        self.max_step = 1e-6
-        self.init_params()
-
-        # Continuous model
-        self.Am = np.array([[0, -1/L],
-                  [1/C, -1/R/C]])
-        self.Bm = np.array([[1/L],
-                  [0]])
-        self.Cm = np.array([0, 1])
-
-        self.x_ini = np.zeros((1, 2))
-
-    
-    def init_params(self):
-        self.t_pwm = None
-        self.t_sim = None
-        self.n = None
-        self.n_cycles = None
-        self.dt = None
+        self.ctlparams = None
 
 
-    def set_max_step(self, max_step):
-        self.max_step = max_step
-
-    
-    def set_pwm(self, t_pwm, n_pwm=100):
-        self.t_pwm = t_pwm
-        self.n_pwm = n_pwm
-        self.dt = t_pwm / n_pwm
-        if self.t_sim is not None:
-            self.set_run_params()
-
-    
-    def set_sim_time(self, t_sim):
-        self.t_sim = t_sim
-        if self.t_pwm is not None:
-            self.set_run_params()
-    
-    
-    def set_run_params(self):
-        self.n = round(self.t_sim / self.dt)
-        self.n_cycles = round(self.t_sim / self.t_pwm)
-        self.t = self.dt * np.arange(self.n)
-        self.set_vectors()
-        print('\n---------------------------------------------')
-        print('|{:^43}|'.format('Run params'))
-        print('---------------------------------------------')
-        print('|{:^21}|{:^21.4e}|'.format('Max. step size', self.max_step))
-        print('|{:^21}|{:^21}|'.format('Sim cycles', self.n_cycles))
-        print('|{:^21}|{:^21}|'.format('State points', self.n))
-        print('---------------------------------------------\n')
+    def set_sim_params(self, dt, t_sim, dt_max):
+        self.sim_params._set_step(dt)
+        self.sim_params._set_t_sim(t_sim)
+        self.sim_params._set_max_step(dt_max)
 
 
-    def set_v_in(self, v_in):
-        self.v_in = v_in
-
+    def set_f_pwm(self, f_pwm):
+        
+        self.circuit._set_f_pwm(f_pwm)
+            
 
     def set_initial_conditions(self, il, vc):
-        self.x_ini[0, 0] = il
-        self.x_ini[0, 1] = vc
+
+        self.signals.x_ini[0] = il
+        self.signals.x_ini[1] = vc
 
 
     def set_ctlparams(self, params):
+
         self.ctlparams = params
 
+    
+    def set_controller(self, controller, params):
         
-    def set_vectors(self):
-        self.t = self.dt * np.arange(self.n)
-        self.x = np.zeros((self.n, 2))
-        self.u = np.zeros((self.n, 1))
-        self.pwm = np.zeros((self.n, 1))
-        self.e = np.zeros((self.n, 1))
-    
-    
-    def sim(self, v_ref, v_in=None, control='ol'):
+        # Control
+        ctl = controller()
+        if type(ctl) is pydctl.PI:
+            t_pwm = self.circuit.t_pwm
+            kp, ki = params['kp'], params['ki']
+            ctl._set_params(kp, ki, t_pwm)
+            
+        elif type(ctl) is pydctl.PID:
+            t_pwm = self.circuit.t_pwm
+            ki = params['ki']
+            kp = params['kp']
+            kd = params['kd']
+            N = params['N']
+            ctl._set_params(kp, ki, kd, N, t_pwm)   
+            
+        elif type(ctl) is pydctl.SMPC:
+            t_pwm = self.circuit.t_pwm
+            A, B, C = self.model.A, self.model.B, self.model.C
+            v_in = self.signals.v_in[0]
+            n_step = params['n_step']
+            alpha, beta, il_max = params['alpha'], params['beta'], params['il_max']
+            if 'ref' in params:
+                ref = params['ref']
+            else:
+                ref = None
+            ctl._set_params(A, B, C, t_pwm, v_in, n_step, alpha=alpha, beta=beta, il_max=il_max, ref=ref)
+            
+        elif type(ctl) is pydctl.DMPC:
+            t_pwm = self.circuit.t_pwm
+            A, B, C = self.model.A, self.model.B, self.model.C
+            v_in = self.signals.v_in[0]
+            n_c, n_p, r_w = params['n_c'], params['n_p'], params['r_w']
+            if 'ref' in params:
+                ref = params['ref']
+            else:
+                ref = None
+            ctl._set_params(A, B, C, t_pwm, v_in, n_p, n_c, r_w, ref)
 
-        # Loads/creates useful variables
-        dt = self.dt
-        n = self.n
-        t = dt * np.arange(n + 1)
-        t_pwm = self.t_pwm
+        elif type(ctl) is pydctl.SFB:
+            t_pwm = self.circuit.t_pwm
+            A, B, C = self.model.A, self.model.B, self.model.C
+            v_in = self.signals.v_in[0]
+            poles = params['poles']
+            ctl._set_params(A, B, C, poles, v_in, t_pwm)
+            
+        else:
+            v_ref = self.signals.v_ref[0]
+            v_in = self.signals.v_in[0]
+            d = v_ref / v_in
+            ctl._set_params(d)
+
+        return ctl
+    
+    
+    def sim(self, v_ref, v_in=None, controller=pydctl.OL):
+
+        #  --- Set model and params for simulation ---
+        # Circuit params
+        R = self.circuit.R; L = self.circuit.L; C = self.circuit.C
+        f_pwm = self.circuit.f_pwm
+        t_pwm = 1 / f_pwm
+
+        # Sim params
+        dt = self.sim_params.dt
+        t_sim = self.sim_params.t_sim
+        dt_max = self.sim_params.dt_max
+
+        # Model
+        self.model._set_model(R, L, C, dt)
+        Am = self.model.A; Bm = self.model.B; Cm = self.model.C
+
+        # Run params
+        n = round(t_sim / dt)
         n_pwm = round(t_pwm / dt)
-        n_cycles = self.n_cycles
-        max_step = self.max_step
+        n_cycles = round(t_sim / t_pwm)
 
-        # Sets v_ref and v_in as vectors if they are numbers
+        # --- Sets reference and input voltage ---
         if type(v_ref) is int or type(v_ref) is float:
             v_ref = v_ref * np.ones(n_cycles)
 
@@ -117,107 +137,210 @@ class Buck:
         elif v_in is None:
             v_in = self.v_in * np.ones(n_cycles)
 
-        # State and control vector
-        x = np.zeros((n + 1, 2))
-        x[0] = self.x_ini[0]
-        u = np.zeros((n, 1))
+        # --- Sets signals ---
+        sig = self.signals
+        sig._set_vectors(dt, t_pwm, t_sim)
+        sig.v_in[:] = v_in[:]
+        sig.v_ref[:] = v_ref[:]
 
-        # Control
-        if control == 'pi':
-            ctlparams = self.ctlparams
-            ctlparams['dt'] = t_pwm
-            ctlini = {'e_1': v_ref[0] - x[0, 1], 'u_1': v_ref[0] / v_in[0]}
-            ctl = pydctl.PI(ctlparams)
-            #ctl.set_initial_conditions(ctlini)
+        sig.x[0, :] = sig.x_ini[:]
+        sig._x[0, :] = sig.x_ini[:]
 
-        elif control == 'pid':
-            ctlparams = self.ctlparams
-            ctlparams['dt'] = t_pwm
-            ctlini = {'e_1': v_ref[0] - x[0, 1], 'u_1': v_ref[0] / v_in[0]}
-            ctl = pydctl.PID(ctlparams)
-            if self.x_ini[0, 0] != 0 and self.x_ini[0, 1] != 0:
-                ctl.set_initial_conditions(u_1=v_ref[0] / v_in[0], u_2=v_ref[0] / v_in[0])
+        # We need to create and auxiliary time vector. This is the same
+        # as the one in signals, but with 1 higher dimension.
+        t = dt * np.arange(n + 1)
         
-        elif control == 'mpc':
-            ctlparams = self.ctlparams
-            ctlparams['A'] = self.Am
-            ctlparams['B'] = self.Bm
-            ctlparams['C'] = self.Cm
-            ctlparams['dt'] = t_pwm
-            ctl = pydctl.MPC(ctlparams)
-            self.ctl = ctl
+        # --- Set control ---
+        ctl = self.set_controller(controller, self.ctlparams)
 
-        else:
-            ctlparams = {'dc': v_ref[0] / v_in[0]}
-            ctlini = {'dc': v_ref[0] / v_in[0]}
-            ctl = pydctl.OL(ctlparams)
-            ctl.set_initial_conditions(ctlini)
-        
+        # --- Sim ---
         # Triangle reference for PWM
         u_t = np.arange(0, 1, 1 / n_pwm)
 
-        # Control signal applied within switching period
+        # Control signal applied within switching period. We create this as a
+        # 2-D vector so numba can perform dot products.
         u_s = np.zeros((n_pwm, 1))
-
-        pwm = np.zeros((n, 1))
-
-        # Reference signal
-        #v_ref_a = v_ref * np.ones((n_cycles, 1))
     
         _ti = time.time()
-        #print(self.x_ini)
-        x0 = (self.x_ini[0, 0], self.x_ini[0, 1])
+        x0 = (self.signals.x_ini[0], self.signals.x_ini[1])
+
         # Loops for each switching cycle
         for i in range(n_cycles):
-            #print(i)
+
             # Indexes for the initial and final points of this cycle
-            i_i = n_pwm * i
-            i_f = n_pwm * (i + 1)
+            i_s = n_pwm * i
+            i_e = n_pwm * (i + 1)
 
             # Control law - always between 0 and 1
-            #print('x[i_i]: {:.2f}'.format(x[i_i, 1]))
-            _u = ctl.control(x[i_i], v_in[i], v_ref[i])
+            csig = ctl.meas(sig, i_s, i)
+            _u = ctl.control(csig)
             if _u < 0:
                 _u = 0
             elif _u > 1:
                 _u = 1
-            u[i_i:i_f, 0] = _u
 
+            u_s[:] = 0
+            u_s[u_t < _u, 0] = v_in[i]
+            
+            sig.d[i_s:i_e] = _u
+            sig.pwm[i_s:i_e] = u_s[:, 0]
+            
             # Initial and final time of this cycle
-            t_i = t[i_i]
-            t_f = t[i_f]
+            t_s = t[i_s]
+            t_e = t[i_e]
 
             # Switching instant
-            t_s = t_i + t_pwm * _u
-            i_s = round(t_s / dt)
+            t_sw = t_s + t_pwm * _u
+            i_sw = round(t_sw / dt)
 
-            if i_s != i_i:
-                t_span = (t_i, t_s)
-                sol = scipy.integrate.solve_ivp(peode.buck_f, t_span, x0, args=(self.Am, self.Bm, v_in[i]), vectorized=True, max_step=max_step, dense_output=True)
+            if i_sw != i_s:
+                t_span = (t_s, t_sw)
+                sol = scipy.integrate.solve_ivp(peode.buck_f, t_span, x0, args=(Am, Bm, v_in[i]), vectorized=True, max_step=dt_max, dense_output=True)
                 x0 = (sol.y[0, -1], sol.y[1, -1])
-                if i_s != i_f:
-                    t_eval = t[i_i:i_s]
-                    #print(i_i, '\t', i_s, '\t', t_eval)
+                if i_sw != i_e:
+                    t_eval = t[i_s:i_sw]
                     x_eval = sol.sol(t_eval)
-                    x[i_i:i_s, 0] = x_eval[0, :]
-                    x[i_i:i_s, 1] = x_eval[1, :]
+                    sig._x[i_s:i_sw, 0] = x_eval[0, :]
+                    sig._x[i_s:i_sw, 1] = x_eval[1, :]
                 else:
-                    t_eval = t[i_i:i_s + 1]
+                    t_eval = sig.t[i_i:i_sw + 1]
                     x_eval = sol.sol(t_eval)
-                    x[i_i:i_s + 1, 0] = x_eval[0, :]
-                    x[i_i:i_s + 1, 1] = x_eval[1, :]
+                    sig._x[i_s:i_sw + 1, 0] = x_eval[0, :]
+                    sig._x[i_s:i_sw + 1, 1] = x_eval[1, :]
 
-            if i_s != i_f:
-                t_span = (t_s, t_f)
-                sol = scipy.integrate.solve_ivp(peode.buck_f, t_span, x0, args=(self.Am, self.Bm, 0), vectorized=True, max_step=max_step, dense_output=True)
+            if i_sw != i_e:
+                t_span = (t_sw, t_e)
+                sol = scipy.integrate.solve_ivp(peode.buck_f, t_span, x0, args=(Am, Bm, 0), vectorized=True, max_step=dt_max, dense_output=True)
                 x0 = (sol.y[0, -1], sol.y[1, -1])
-                t_eval = t[i_s:i_f + 1]
+                t_eval = t[i_sw:i_e + 1]
                 x_eval = sol.sol(t_eval)
-                x[i_s:i_f + 1, 0] = x_eval[0, :]
-                x[i_s:i_f + 1, 1] = x_eval[1, :]
+                sig._x[i_sw:i_e + 1, 0] = x_eval[0, :]
+                sig._x[i_sw:i_e + 1, 1] = x_eval[1, :]
         
-        self.x = x[:-1, :]
-        self.u = u
+        sig.x[:] = sig._x[:-1, :]
                 
         _tf = time.time()
         print('Sim time: {:.4f} s\n'.format(_tf - _ti))
+
+
+    class __Circuit:
+
+        def __init__(self, R, L, C, f_pwm):
+
+            self.R = R
+            self.L = L
+            self.C = C
+            
+            if f_pwm is not None:
+                self.f_pwm = f_pwm
+                self.t_pwm = 1 / f_pwm
+            else:
+                self.f_pwm = None
+                self.t_pwm = None
+
+
+        def _get_params(self):
+
+            return self.R, self.L, self.C, self.f_pwm
+        
+
+        def _set_f_pwm(self, f_pwm):
+            
+            self.f_pwm = f_pwm
+            self.t_pwm = 1 / f_pwm
+
+
+    class __Signals:
+
+        def __init__(self):
+
+            self.x_ini = np.array([0.0, 0.0])
+            self.t = None
+            self.t_p = None
+            self.x = None
+            self._x = None
+            self.v_in = None
+            self.v_ref = None
+
+            self.d = None
+            self.pwm = None
+
+        def _set_vectors(self, dt, t_pwm, t_sim):
+
+            n = round(t_sim / dt)
+            self.t = dt * np.arange(n)
+            self.x = np.zeros((n, 2))
+            self._x = np.zeros((n + 1, 2))
+            self.pwm = np.zeros(n)
+            self.d = np.zeros(n)
+
+            n_cycles = round(t_sim / t_pwm)
+            self.t_p = t_pwm * np.arange(n_cycles)
+            self.v_in = np.zeros(n_cycles)
+            self.v_ref = np.zeros(n_cycles)
+            
+
+    class __Model:
+
+        def __init__(self):
+
+            self.A = None
+            self.B = None
+            self.C = None
+
+            self.Ad = None
+            self.Bd = None
+            self.Cd = None
+
+            self.dt = None
+            
+
+        def _set_model(self, R, L, C, dt):
+
+            self.dt = dt
+            
+            A, B, C = self._continuous(R, L, C)
+            self.A = A; self.B = B; self.C = C
+            
+            self.Ad, self.Bd, self.Cd = self._discrete(A, B, C, dt)
+            
+            
+        def _continuous(self, R, L, C):
+            
+            A = np.array([[0,      -1/L],
+                          [1/C,    -1/R/C]])
+            
+            B = np.array([[1/L],
+                          [0]])
+            
+            C = np.array([0, 1])
+
+            return (A, B, C)
+        
+
+        def _discrete(self, A, B, C, dt):
+            
+            Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((self.A, self.B, self.C, 0), self.dt, method='bilinear')
+
+            return (Ad, Bd, Cd)
+
+
+    class __SimParams:
+
+        def __init__(self, dt=None, t_sim=None, dt_max=None):
+            
+            self.dt = None
+            self.t_sim = None
+            self.dt_max = None
+
+            
+        def _set_step(self, dt):
+            self.dt = dt
+            
+
+        def _set_t_sim(self, t_sim):
+            self.t_sim = t_sim
+
+
+        def _set_max_step(self, dt_max):
+            self.dt_max = dt_max

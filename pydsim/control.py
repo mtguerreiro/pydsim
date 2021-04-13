@@ -4,6 +4,9 @@ import numpy as np
 import pyctl as ctl
 import pydsim.utils as pydutils
 
+import sys
+import inspect
+
 
 class OL:
 
@@ -527,3 +530,8 @@ class SFB:
         
         return u_sfb
 
+
+##def set_controller(controller):
+##    ctlrs = [c[1] for c in inspect.getmembers(sys.modules[__name__], inspect.isclass)]
+##
+##    return ctlrs
