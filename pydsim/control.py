@@ -516,15 +516,24 @@ class SFB2:
         self.B = None
         self.C = None
 
+        self.Ad = None
+        self.Bd = None
+        self.Cd = None
+
         self.Aa = None
         self.Ba = None
 
         # Gains
         self.K_x = None
+        self.K_e = np.array([[20],[1]])
 
         # Controlle states
         self.e_1 = 0
         self.zeta_1 = 0
+        self.x_bar_k = np.zeros((2,1), dtype=np.float)
+        self.x_bar_k_1 = 0
+        self.x_hat_k = 0
+        self.x_obs = []
 
 
     def _set_params(self, A, B, C, poles, v_in, dt):
@@ -536,6 +545,9 @@ class SFB2:
         self.A = A
         self.B = B * v_in
         self.C = C
+
+        Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((A, B * v_in, C, 0), dt, method='bilinear')
+        self.Ad, self.Bd, self.Cd = Ad, Bd, Cd
         
         # Ackermann
         K_x = self._acker(A, B * v_in, poles)
@@ -570,8 +582,10 @@ class SFB2:
 
 
     def meas(self, signals, i, j):
-        x = signals._x[i]
-        r = signals.v_ref[0] / signals.v_in[0]
+        #x = signals._x[i]
+        x = self.C @ signals._x[i]
+        r = signals.v_ref[j] / signals.v_in[0]
+        #y = self.model.C @ signals._x[i]
 
         sigs = [x, r]
         
@@ -579,12 +593,25 @@ class SFB2:
     
 
     def control(self, sigs):
-        x = sigs[0]
+
+        Ad, Bd, Cd = self.Ad*1.05, self.Bd, self.Cd
+
+        y = sigs[0]
         r = sigs[1]
         
-        u_sfb = -self.K_x @ x + r
+        e = y - self.C @ self.x_bar_k
+        self.x_hat_k = self.K_e * e + self.x_bar_k
+
+        self.x_bar_k_1 = Ad @ self.x_hat_k + Bd * r
+        self.x_bar_k = self.x_bar_k_1
+        
+        self.x_obs.append(self.x_hat_k)
+
+        u_sfb = -self.K_x @ self.x_hat_k + r
+        #print(u_sfb)
+        #u_sfb = r
                 
-        return u_sfb
+        return u_sfb[0,0]
 
     
 ##def set_controller(controller):

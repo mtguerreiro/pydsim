@@ -26,6 +26,7 @@ class Buck:
         self.signals = self.__Signals()
 
         self.ctlparams = None
+        self.ctl = None
 
 
     def set_sim_params(self, dt, t_sim, dt_max=1e-6):
@@ -96,6 +97,13 @@ class Buck:
             v_in = self.signals.v_in[0]
             poles = params['poles']
             ctl._set_params(A, B, C, poles, v_in, t_pwm)
+
+        elif type(ctl) is pydctl.SFB2:
+            t_pwm = self.circuit.t_pwm
+            A, B, C = self.model.A, self.model.B, self.model.C
+            v_in = self.signals.v_in[0]
+            poles = params['poles']
+            ctl._set_params(A, B, C, poles, v_in, t_pwm)
             
         else:
             v_ref = self.signals.v_ref[0]
@@ -152,6 +160,7 @@ class Buck:
         
         # --- Set control ---
         ctl = self.set_controller(controller, self.ctlparams)
+        self.ctl = ctl
 
         # --- Sim ---
         # Triangle reference for PWM

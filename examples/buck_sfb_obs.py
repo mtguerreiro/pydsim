@@ -28,14 +28,17 @@ Ts = 0.5e-3
 os = 15/100
 
 # --- Simulation ---
-buck = pyd.pe.Buck(R, L, C)
+buck = pyd.peode.Buck(R, L, C)
 buck.set_f_pwm(f_pwm)
 buck.set_sim_params(dt, t_sim)
-#buck.set_initial_conditions(1, 1)
+buck.set_initial_conditions(1, 1)
 
 n = round(t_sim * f_pwm)
 v_in_p = v_in * np.ones(n)
-v_in_p[n>>1:] = v_in + v_in_step
+#v_in_p[n>>1:] = v_in + v_in_step
+
+v_ref_p = v_ref * np.ones(n)
+#v_ref_p[n>>1:] = v_ref + v_in_step
 
 zeta = -np.log(os) / np.sqrt(np.pi**2 + (np.log(os))**2)
 wn = 4/Ts/zeta
@@ -46,8 +49,8 @@ p2 = np.conj(p1)
 #sfb_params = {'poles': [p1, p2, p3]}
 sfb_params = {'poles': [p1, p2]}
 buck.set_ctlparams(sfb_params)
-buck.sim(v_ref=v_ref, v_in=v_in_p, controller=pyd.control.SFB2)
-print(buck.ctl.K_x)
+buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.SFB2)
+#print(buck.ctl.K_x)
 
 t_sfb = buck.signals.t
 x_sfb = buck.signals.x
