@@ -203,37 +203,6 @@ class SMPC:
         # Reference and index for changing reference
         self.ref = None
         self.__i = 0
-        
-##        self.dt = mpc_params['dt']
-##        v_in = mpc_params['v_in']
-##        self.A = mpc_params['A']
-##        self.B = mpc_params['B'] * v_in
-##        self.C = mpc_params['C']
-##
-##       self.alpha = mpc_params['alpha']
-##       self.beta = mpc_params['beta']
-
-##        try:
-##            n_ref = mpc_params['ref'].shape[0]
-##            ref = np.zeros(n_ref + mpc_params['n_step'])
-##            ref[:n_ref] = mpc_params['ref']
-##            ref[n_ref:] = mpc_params['ref'][-1]
-##            self.ref = ref
-##        except:
-##            self.ref = None
-        
-        #self.ref = mpc_params['ref']
-
-##        try:
-##            self.il_max = mpc_params['il_max']
-##        except:
-##            self.il_max = np.inf
-
-##        self.n_step = mpc_params['n_step']
-
-##        self.set_model(self.A, self.B, self.C, self.dt)
-
-##        self.__i = 0
 
 
     def _set_params(self, A, B, C, dt, v_in, n_p, alpha=1, beta=0, il_max=np.inf, ref=None):
@@ -453,8 +422,8 @@ class SFB:
         self.Ba = None
 
         # Gains
-        self.Kx = None
-        self.Ky = None
+        self.K_x = None
+        self.K_z = None
 
         # Controlle states
         self.e_1 = 0
@@ -474,9 +443,9 @@ class SFB:
         Aa, Ba = self._aug_model(A, B * v_in, C)
         
         # Ackermann
-        Kx = self._acker(Aa, Ba, poles)
-        self.Kx = Kx[0, :-1]
-        self.Kz = Kx[0, -1]
+        K_x = self._acker(Aa, Ba, poles)
+        self.K_x = K_x[0, :-1]
+        self.K_z = K_x[0, -1]
 
 
     def _aug_model(self, A, B, C):
@@ -523,7 +492,7 @@ class SFB:
         e = (r - x[1])
         zeta = self.zeta_1 + self.dt / 2 * (e + self.e_1)
         
-        u_sfb = -self.Kx @ x + self.Kz * zeta
+        u_sfb = -self.K_x @ x + self.K_z * zeta
 
         self.zeta_1 = zeta
         self.e_1 = e
