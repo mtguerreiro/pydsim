@@ -11,11 +11,11 @@ C = 560e-6
 
 # Input and reference voltage
 v_in = 10
-v_in_step = -1
+v_in_step = 3
 v_ref = 5
 
 # Sim time
-t_sim = 10e-3
+t_sim = 2e-3
 
 # PWM frequency
 f_pwm = 200e3
@@ -31,11 +31,11 @@ os = 15/100
 buck = pyd.peode.Buck(R, L, C)
 buck.set_f_pwm(f_pwm)
 buck.set_sim_params(dt, t_sim)
-buck.set_initial_conditions(2, 6)
+#buck.set_initial_conditions(2, 6)
 
 n = round(t_sim * f_pwm)
 v_in_p = v_in * np.ones(n)
-#v_in_p[n>>1:] = v_in + v_in_step
+v_in_p[n>>1:] = v_in + v_in_step
 
 v_ref_p = v_ref * np.ones(n)
 #v_ref_p[n>>1:] = v_ref + v_in_step
@@ -44,13 +44,14 @@ zeta = -np.log(os) / np.sqrt(np.pi**2 + (np.log(os))**2)
 wn = 4/Ts/zeta
 p1 = -zeta * wn + wn * np.sqrt(zeta**2 - 1, dtype=complex)
 p2 = np.conj(p1)
-p1_o = 5 * p1.real + 1j * p1.imag
-#p1_o = 2 * p1
+p3 = 10 * p1.real
+#p1_o = 5 * p1.real + 1j * p1.imag
+p1_o = 2 * p1
 p2_o = np.conj(p1_o)
 #p3 = 10 * p1.real
 
 #sfb_params = {'poles': [p1, p2, p3]}
-sfb_params = {'poles': [p1, p2], 'poles_o': [p1_o, p2_o]}
+sfb_params = {'poles': [p1, p2, p3], 'poles_o': [p1_o, p2_o]}
 buck.set_ctlparams(sfb_params)
 buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.SFB_OBS)
 #print(buck.ctl.K_x)

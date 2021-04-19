@@ -517,6 +517,10 @@ class SFB_OBS:
         self.B = None
         self.C = None
 
+        self.Aa = None
+        self.Ba = None
+        self.Ca = None
+
         self.Ao = None
         self.Bo = None
         self.Co = None
@@ -527,12 +531,15 @@ class SFB_OBS:
 
         # State feedback and observer gains
         self.K_x = None
+        self.K_z = None
         self.K_o = None
 
         # Controlle states
-        self.x_bar_k = np.zeros((2,1), dtype=np.float)
+        self.x_bar_k = np.zeros(2, dtype=np.float)
         self.x_bar_k_1 = 0
         self.x_obs = []
+        self.e_1 = 0
+        self.zeta_1 = 0
 
 
     def _set_params(self, A, B, C, poles, poles_o, v_in, dt):
@@ -545,10 +552,14 @@ class SFB_OBS:
         self.A = A
         self.B = B * v_in
         self.C = C
+
+        # Augmented model for state feedback with integrator
+        Aa, Ba = self._aug_model(A, B * v_in, C)
         
         # Ackermann
-        K_x = self._acker(A, B * v_in, poles)
-        self.K_x = K_x
+        K_x = self._acker(Aa, Ba, poles)
+        self.K_x = K_x[0, :-1]
+        self.K_z = K_x[0, -1]
 
         K_o = self._acker(A.T, np.array([C]).T, poles_o).T
         self.K_o = K_o
@@ -582,16 +593,30 @@ class SFB_OBS:
 
     def _acker(self, Aa, Ba, p):
 
-        c_eq = np.polymul([1, -p[0]], [1, -p[1]]).real
+        if len(p) == 2:
 
-        Mc = np.zeros((2,2))
-        Mc[:, 0] = Ba[:, 0]
-        Mc[:, 1] = (Aa @ Ba)[:, 0]
+            c_eq = np.polymul([1, -p[0]], [1, -p[1]]).real
 
-        Phi_d = c_eq[0] * Aa @ Aa + c_eq[1] * Aa + c_eq[2] * np.eye(2)
+            Mc = np.zeros((2,2))
+            Mc[:, 0] = Ba[:, 0]
+            Mc[:, 1] = (Aa @ Ba)[:, 0]
 
-        K_x = np.array([[0, 1]]) @ np.linalg.inv(Mc) @ Phi_d
+            Phi_d = c_eq[0] * Aa @ Aa + c_eq[1] * Aa + c_eq[2] * np.eye(2)
 
+            K_x = np.array([[0, 1]]) @ np.linalg.inv(Mc) @ Phi_d
+
+        elif len(p) == 3:
+            c_eq = np.polymul(np.polymul([1, -p[0]], [1, -p[1]]).real, [1, -p[2]]).real
+
+            Mc = np.zeros((3,3))
+            Mc[:, 0] = Ba[:, 0]
+            Mc[:, 1] = (Aa @ Ba)[:, 0]
+            Mc[:, 2] = (Aa @ Aa @ Ba)[:, 0]
+
+            Phi_d = c_eq[0] * Aa @ Aa @ Aa + c_eq[1] * Aa @ Aa + c_eq[2] * Aa + c_eq[3] * np.eye(3)
+
+            K_x = np.array([[0, 0, 1]]) @ np.linalg.inv(Mc) @ Phi_d
+            
         return K_x
 
 
@@ -605,7 +630,7 @@ class SFB_OBS:
 
     def meas(self, signals, i, j):
         x = signals._x[i]
-        r = signals.v_ref[j] / signals.v_in[0]
+        r = signals.v_ref[j] #/ signals.v_in[0]
 
         sigs = [x, r]
         
@@ -621,19 +646,26 @@ class SFB_OBS:
         r = sigs[1]
         y = x[1]
 
+        e = (r - y)
+        zeta = self.zeta_1 + self.dt / 2 * (e + self.e_1)
+        
         #u_sfb = -self.K_x @ x + r
         self.x_obs.append(self.x_bar_k)
-        u_sfb = -self.K_x @ self.x_bar_k + r
-        if u_sfb[0, 0] > 1: u_sfb[0, 0] = 1
-        elif u_sfb[0, 0] < 0: u_sfb[0, 0] = 0
+        u_sfb = -self.K_x @ self.x_bar_k + self.K_z * zeta
+        if u_sfb > 1: u_sfb = 1
+        elif u_sfb < 0: u_sfb = 0
         
         
-        uo = np.array([[u_sfb[0,0]], [y]])
+        uo = np.array([u_sfb, y])
         self.x_bar_k_1 = Aod @ self.x_bar_k + Bod @ uo
         self.x_bar_k = self.x_bar_k_1
+
+        self.zeta_1 = zeta
+        self.e_1 = e
+        
         #self.x_obs.append(self.x_bar_k_1)
         
-        return u_sfb[0,0]
+        return u_sfb
     
 ##def set_controller(controller):
 ##    ctlrs = [c[1] for c in inspect.getmembers(sys.modules[__name__], inspect.isclass)]
