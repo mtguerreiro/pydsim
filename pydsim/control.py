@@ -535,7 +535,7 @@ class SFB_OBS:
         self.K_o = None
 
         # Controlle states
-        self.x_bar_k = np.zeros(2, dtype=np.float)
+        self.x_bar_k = np.zeros(3, dtype=np.float)
         self.x_bar_k_1 = 0
         self.x_obs = []
         self.e_1 = 0
@@ -556,20 +556,35 @@ class SFB_OBS:
         # Augmented model for state feedback with integrator
         Aa, Ba = self._aug_model(A, B * v_in, C)
         
-        # Ackermann
         K_x = self._acker(Aa, Ba, poles)
         self.K_x = K_x[0, :-1]
         self.K_z = K_x[0, -1]
 
-        K_o = self._acker(A.T, np.array([C]).T, poles_o).T
-        self.K_o = K_o
-
         # Observer system
-        Ao = A - K_o * C
-        Bo = np.zeros((2,2))
-        Bo[:, 0] = B[:, 0] * v_in
-        Bo[:, 1] = K_o[:, 0]
-        Co = C
+        Aao = np.zeros((3, 3))
+        Aao[:2, :2] = A
+        Aao[:2, 2] = B[:, 0] * v_in
+        Aao[-1, -1] = 1
+
+        Cao = np.zeros(3)#C
+        Cao[:2] = C
+        
+        K_o = self._acker(Aao.T, np.array([Cao]).T, poles_o).T
+        self.K_o = K_o
+        print(K_o)
+
+        Ao = Aao - K_o * Cao
+#        Ao = np.zeros((3, 3))
+#        Ao[:2, :2] = A - K_o * C
+#        Ao[:2, 2] = B[:, 0] * v_in
+#        Ao[-1, -1] = 1
+        
+        Bo = np.zeros((3,2))
+        Bo[:2, 0] = B[:, 0] * v_in
+        Bo[0:, 1] = K_o[:, 0]
+
+        Co = np.zeros((1, 3))#C
+        Co[0, :2] = C
         
         self.Ao = Ao
         self.Bo = Bo
@@ -651,7 +666,7 @@ class SFB_OBS:
         
         #u_sfb = -self.K_x @ x + r
         self.x_obs.append(self.x_bar_k)
-        u_sfb = -self.K_x @ self.x_bar_k + self.K_z * zeta
+        u_sfb = -self.K_x @ self.x_bar_k[:2] + self.K_z * zeta - self.x_bar_k[2]
         if u_sfb > 1: u_sfb = 1
         elif u_sfb < 0: u_sfb = 0
         
