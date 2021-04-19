@@ -98,12 +98,13 @@ class Buck:
             poles = params['poles']
             ctl._set_params(A, B, C, poles, v_in, t_pwm)
 
-        elif type(ctl) is pydctl.SFB2:
+        elif type(ctl) is pydctl.SFB_OBS:
             t_pwm = self.circuit.t_pwm
             A, B, C = self.model.A, self.model.B, self.model.C
             v_in = self.signals.v_in[0]
             poles = params['poles']
-            ctl._set_params(A, B, C, poles, v_in, t_pwm)
+            poles_o = params['poles_o']
+            ctl._set_params(A, B, C, poles, poles_o, v_in, t_pwm)
             
         else:
             v_ref = self.signals.v_ref[0]
@@ -225,7 +226,10 @@ class Buck:
                 x_eval = sol.sol(t_eval)
                 sig._x[i_sw:i_e + 1, 0] = x_eval[0, :]
                 sig._x[i_sw:i_e + 1, 1] = x_eval[1, :]
-        
+
+            #sig._x[i_s:i_e+1, 0] = pynoise.awgn(sig._x[i_s:i_e+1, 0], 40)
+            #sig._x[i_s:i_e+1, 1] = pynoise.awgn(sig._x[i_s:i_e+1, 1], 30)
+                
         sig.x[:] = sig._x[:-1, :]
                 
         _tf = time.time()

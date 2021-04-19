@@ -11,11 +11,11 @@ C = 560e-6
 
 # Input and reference voltage
 v_in = 10
-v_in_step = -3
+v_in_step = -1
 v_ref = 5
 
 # Sim time
-t_sim = 5e-3
+t_sim = 10e-3
 
 # PWM frequency
 f_pwm = 200e3
@@ -31,7 +31,7 @@ os = 15/100
 buck = pyd.peode.Buck(R, L, C)
 buck.set_f_pwm(f_pwm)
 buck.set_sim_params(dt, t_sim)
-buck.set_initial_conditions(1, 1)
+buck.set_initial_conditions(2, 6)
 
 n = round(t_sim * f_pwm)
 v_in_p = v_in * np.ones(n)
@@ -44,12 +44,15 @@ zeta = -np.log(os) / np.sqrt(np.pi**2 + (np.log(os))**2)
 wn = 4/Ts/zeta
 p1 = -zeta * wn + wn * np.sqrt(zeta**2 - 1, dtype=complex)
 p2 = np.conj(p1)
+p1_o = 5 * p1.real + 1j * p1.imag
+#p1_o = 2 * p1
+p2_o = np.conj(p1_o)
 #p3 = 10 * p1.real
 
 #sfb_params = {'poles': [p1, p2, p3]}
-sfb_params = {'poles': [p1, p2]}
+sfb_params = {'poles': [p1, p2], 'poles_o': [p1_o, p2_o]}
 buck.set_ctlparams(sfb_params)
-buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.SFB2)
+buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.SFB_OBS)
 #print(buck.ctl.K_x)
 
 t_sfb = buck.signals.t
@@ -64,27 +67,49 @@ u_sfb = buck.signals.d
 
 
 # --- Results ---
-plt.figure(figsize=(10,6))
+x_obs = buck.ctl.get_sobs()
+t_obs = buck.signals.t_p
 
-ax = plt.subplot(3,1,1)
-plt.plot(t_sfb / 1e-3, x_sfb[:, 1], label='sfb')
-plt.grid()
-plt.legend()
-plt.xlabel('Time (ms)')
-plt.ylabel('Voltage (V)')
+plt.plot(t_sfb / 1e-3, x_sfb, label='sfb')
+plt.plot(t_obs / 1e-3, x_obs, '--')
+##plt.figure(figsize=(10,6))
+##
+##ax = plt.subplot(3,1,1)
+##plt.plot(t_sfb / 1e-3, x_sfb[:, 1], label='sfb')
+##plt.grid()
+##plt.legend()
+##plt.xlabel('Time (ms)')
+##plt.ylabel('Voltage (V)')
+##
+##plt.subplot(3,1,2, sharex=ax)
+##plt.plot(t_sfb / 1e-3, x_sfb[:, 0], label='sfb')
+##plt.grid()
+##plt.legend()
+##plt.xlabel('Time (ms)')
+##plt.ylabel('Current (A)')
+##
+##plt.subplot(3,1,3, sharex=ax)
+##plt.plot(t_sfb / 1e-3, u_sfb, label='sfb')
+##plt.grid()
+##plt.legend()
+##plt.xlabel('Time (ms)')
+##plt.ylabel('$u$')
+##
+##plt.tight_layout()
 
-plt.subplot(3,1,2, sharex=ax)
-plt.plot(t_sfb / 1e-3, x_sfb[:, 0], label='sfb')
-plt.grid()
-plt.legend()
-plt.xlabel('Time (ms)')
-plt.ylabel('Current (A)')
 
-plt.subplot(3,1,3, sharex=ax)
-plt.plot(t_sfb / 1e-3, u_sfb, label='sfb')
-plt.grid()
-plt.legend()
-plt.xlabel('Time (ms)')
-plt.ylabel('$u$')
+# --- Test ---
+A = buck.model.A
+B = buck.model.B
+C = buck.model.C
 
-plt.tight_layout()
+Mo = np.zeros((2,2), dtype=np.float)
+Mo[0, :] = C
+Mo[1, :] = C @ A
+
+p = np.linalg.eigvals(A)
+pobs = np.array([5 * p[0].real + 1j * p[0].imag / 5, 5 * p[0].real - 1j * p[0].imag / 5])
+
+ceq = np.polymul([1, -pobs[0]], [1, -pobs[1]]).real
+Phi_d = ceq[0] * A @ A + ceq[1] * A + ceq[2] * np.eye(2)
+K_e = Phi_d @ np.linalg.inv(Mo) @ np.array([[0], [1]])

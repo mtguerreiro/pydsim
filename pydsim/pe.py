@@ -123,12 +123,13 @@ class Buck:
             poles = params['poles']
             ctl._set_params(A, B, C, poles, v_in, t_pwm)
 
-        elif type(ctl) is pydctl.SFB2:
+        elif type(ctl) is pydctl.SFB_OBS:
             t_pwm = self.circuit.t_pwm
             A, B, C = self.model.A, self.model.B, self.model.C
             v_in = self.signals.v_in[0]
             poles = params['poles']
-            ctl._set_params(A, B, C, poles, v_in, t_pwm)
+            poles_o = params['poles_o']
+            ctl._set_params(A, B, C, poles, poles_o, v_in, t_pwm)
             
         else:
             v_ref = self.signals.v_ref[0]

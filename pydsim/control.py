@@ -500,7 +500,7 @@ class SFB:
         return u_sfb
 
 
-class SFB2:
+class SFB_OBS:
     
     def __init__(self):
 
@@ -510,48 +510,62 @@ class SFB2:
 
         # Poles
         self.poles = None
+        self.poles_o = None
 
-        # Model and augmented model
+        # Plant and observer models
         self.A = None
         self.B = None
         self.C = None
 
-        self.Ad = None
-        self.Bd = None
-        self.Cd = None
+        self.Ao = None
+        self.Bo = None
+        self.Co = None
 
-        self.Aa = None
-        self.Ba = None
+        self.Aod = None
+        self.Bod = None
+        self.Cod = None
 
-        # Gains
+        # State feedback and observer gains
         self.K_x = None
-        self.K_e = np.array([[20],[1]])
+        self.K_o = None
 
         # Controlle states
-        self.e_1 = 0
-        self.zeta_1 = 0
         self.x_bar_k = np.zeros((2,1), dtype=np.float)
         self.x_bar_k_1 = 0
-        self.x_hat_k = 0
         self.x_obs = []
 
 
-    def _set_params(self, A, B, C, poles, v_in, dt):
+    def _set_params(self, A, B, C, poles, poles_o, v_in, dt):
 
         self.poles = poles
+        self.poles_o = poles_o
         self.v_in = v_in
         self.dt = dt
 
         self.A = A
         self.B = B * v_in
         self.C = C
-
-        Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((A, B * v_in, C, 0), dt, method='bilinear')
-        self.Ad, self.Bd, self.Cd = Ad, Bd, Cd
         
         # Ackermann
         K_x = self._acker(A, B * v_in, poles)
         self.K_x = K_x
+
+        K_o = self._acker(A.T, np.array([C]).T, poles_o).T
+        self.K_o = K_o
+
+        # Observer system
+        Ao = A - K_o * C
+        Bo = np.zeros((2,2))
+        Bo[:, 0] = B[:, 0] * v_in
+        Bo[:, 1] = K_o[:, 0]
+        Co = C
+        
+        self.Ao = Ao
+        self.Bo = Bo
+        self.Co = Co
+
+        Aod, Bod, Cod, _, _ = scipy.signal.cont2discrete((Ao, Bo, Co, 0), dt, method='bilinear')
+        self.Aod, self.Bod, self.Cod = Aod, Bod, Cod
 
 
     def _aug_model(self, A, B, C):
@@ -581,11 +595,17 @@ class SFB2:
         return K_x
 
 
+    def get_sobs(self):
+
+        x_obs = np.array(self.x_obs)
+        n = (x_obs.shape[0], x_obs.shape[1])
+        
+        return x_obs.reshape(n)
+
+
     def meas(self, signals, i, j):
-        #x = signals._x[i]
-        x = self.C @ signals._x[i]
+        x = signals._x[i]
         r = signals.v_ref[j] / signals.v_in[0]
-        #y = self.model.C @ signals._x[i]
 
         sigs = [x, r]
         
@@ -594,25 +614,26 @@ class SFB2:
 
     def control(self, sigs):
 
-        Ad, Bd, Cd = self.Ad*1.05, self.Bd, self.Cd
+        Aod, Bod, Cod = self.Aod, self.Bod, self.Cod
+        dt = self.dt
 
-        y = sigs[0]
+        x = sigs[0]
         r = sigs[1]
-        
-        e = y - self.C @ self.x_bar_k
-        self.x_hat_k = self.K_e * e + self.x_bar_k
+        y = x[1]
 
-        self.x_bar_k_1 = Ad @ self.x_hat_k + Bd * r
+        #u_sfb = -self.K_x @ x + r
+        self.x_obs.append(self.x_bar_k)
+        u_sfb = -self.K_x @ self.x_bar_k + r
+        if u_sfb[0, 0] > 1: u_sfb[0, 0] = 1
+        elif u_sfb[0, 0] < 0: u_sfb[0, 0] = 0
+        
+        
+        uo = np.array([[u_sfb[0,0]], [y]])
+        self.x_bar_k_1 = Aod @ self.x_bar_k + Bod @ uo
         self.x_bar_k = self.x_bar_k_1
+        #self.x_obs.append(self.x_bar_k_1)
         
-        self.x_obs.append(self.x_hat_k)
-
-        u_sfb = -self.K_x @ self.x_hat_k + r
-        #print(u_sfb)
-        #u_sfb = r
-                
         return u_sfb[0,0]
-
     
 ##def set_controller(controller):
 ##    ctlrs = [c[1] for c in inspect.getmembers(sys.modules[__name__], inspect.isclass)]
