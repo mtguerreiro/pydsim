@@ -6,6 +6,7 @@ import numba
 import pydsim.utils as pydutils
 import pydsim.control as pydctl
 import pydsim.nbutils as pydnb
+import pydsim.data_types as pyddtypes
 
 import pysp
 import pynoise
@@ -15,10 +16,10 @@ class Buck:
 
     def __init__(self, R, L, C, f_pwm=None):
 
-        self.circuit = self.__Circuit(R, L, C, f_pwm)
-        self.model = self.__Model()
-        self.sim_params = self.__SimParams()
-        self.signals = self.__Signals()
+        self.circuit = pyddtypes.TwoPoleCircuit(R, L, C, f_pwm)
+        self.model = pyddtypes.BuckModel()
+        self.sim_params = pyddtypes.SimParams()
+        self.signals = pyddtypes.Signals()
 
         # Set up filter
         self.filter = None
@@ -29,7 +30,7 @@ class Buck:
 
 
     def set_sim_params(self, dt, t_sim):
-        self.sim_params._set_step(dt)
+        self.sim_params._set_dt(dt)
         self.sim_params._set_t_sim(t_sim)
 
 
@@ -240,121 +241,3 @@ class Buck:
                 
         _tf = time.time()
         print('Sim time: {:.4f} s\n'.format(_tf - _ti))
-
-
-    class __Circuit:
-
-        def __init__(self, R, L, C, f_pwm):
-
-            self.R = R
-            self.L = L
-            self.C = C
-            
-            if f_pwm is not None:
-                self.f_pwm = f_pwm
-                self.t_pwm = 1 / f_pwm
-            else:
-                self.f_pwm = None
-                self.t_pwm = None
-
-
-        def _get_params(self):
-
-            return self.R, self.L, self.C, self.f_pwm
-        
-
-        def _set_f_pwm(self, f_pwm):
-            
-            self.f_pwm = f_pwm
-            self.t_pwm = 1 / f_pwm
-
-
-    class __Signals:
-
-        def __init__(self):
-
-            self.x_ini = np.array([0.0, 0.0])
-            self.t = None
-            self.t_p = None
-            self.x = None
-            self._x = None
-            self.v_in = None
-            self.v_ref = None
-
-            self.d = None
-            self.pwm = None
-
-        def _set_vectors(self, dt, t_pwm, t_sim):
-
-            n = round(t_sim / dt)
-            self.t = dt * np.arange(n)
-            self.x = np.zeros((n, 2))
-            self._x = np.zeros((n + 1, 2))
-            self.pwm = np.zeros(n)
-            self.d = np.zeros(n)
-
-            n_cycles = round(t_sim / t_pwm)
-            self.t_p = t_pwm * np.arange(n_cycles)
-            self.v_in = np.zeros(n_cycles)
-            self.v_ref = np.zeros(n_cycles)
-            
-
-    class __Model:
-
-        def __init__(self):
-
-            self.A = None
-            self.B = None
-            self.C = None
-
-            self.Ad = None
-            self.Bd = None
-            self.Cd = None
-
-            self.dt = None
-            
-
-        def _set_model(self, R, L, C, dt):
-
-            self.dt = dt
-            
-            A, B, C = self._continuous(R, L, C)
-            self.A = A; self.B = B; self.C = C
-            
-            self.Ad, self.Bd, self.Cd = self._discrete(A, B, C, dt)
-            
-            
-        def _continuous(self, R, L, C):
-            
-            A = np.array([[0,      -1/L],
-                          [1/C,    -1/R/C]])
-            
-            B = np.array([[1/L],
-                          [0]])
-            
-            C = np.array([0, 1])
-
-            return (A, B, C)
-        
-
-        def _discrete(self, A, B, C, dt):
-            
-            Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((self.A, self.B, self.C, 0), self.dt, method='bilinear')
-
-            return (Ad, Bd, Cd)
-
-
-    class __SimParams:
-
-        def __init__(self, dt=None, t_sim=None):
-            
-            self.dt = None
-            self.t_sim = None
-
-            
-        def _set_step(self, dt):
-            self.dt = dt
-            
-
-        def _set_t_sim(self, t_sim):
-            self.t_sim = t_sim

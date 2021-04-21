@@ -20,13 +20,13 @@ t_sim = 10e-3
 f_pwm = 200e3
 
 # Step size for simulation
-dt_max = 1e-6
+max_step = 1e-6
 dt = 1 / f_pwm / 100
 
 # --- Simulation ---
 buck = pyd.peode.Buck(R, L, C)
 buck.set_f_pwm(f_pwm)
-buck.set_sim_params(dt, t_sim, dt_max=dt_max)
+buck.set_sim_params(dt, t_sim, max_step=max_step)
 buck.set_initial_conditions(0, 0)
 
 buck.sim(v_ref=v_ref, v_in=v_in)

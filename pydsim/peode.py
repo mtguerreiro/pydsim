@@ -29,10 +29,10 @@ class Buck:
         self.ctl = None
 
 
-    def set_sim_params(self, dt, t_sim, dt_max=1e-6):
+    def set_sim_params(self, dt, t_sim, max_step=1e-6):
         self.sim_params._set_step(dt)
         self.sim_params._set_t_sim(t_sim)
-        self.sim_params._set_max_step(dt_max)
+        self.sim_params._set_max_step(max_step)
 
 
     def set_f_pwm(self, f_pwm):
