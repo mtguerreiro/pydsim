@@ -131,6 +131,13 @@ class Buck:
             poles = params['poles']
             poles_o = params['poles_o']
             ctl._set_params(A, B, C, poles, poles_o, v_in, t_pwm)
+
+        elif type(ctl) is pydctl.LQR:
+            t_pwm = self.circuit.t_pwm
+            A, B, C = self.model.A, self.model.B, self.model.C
+            v_in = self.signals.v_in[0]
+            Q, R, H, N = params['Q'], params['R'], params['H'], params['N']
+            ctl._set_params(A, B, C, v_in, t_pwm, Q, R, H, N)
             
         else:
             v_ref = self.signals.v_ref[0]
