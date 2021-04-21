@@ -7,6 +7,7 @@ import pydsim.peode as peode
 import pydsim.utils as pydutils
 import pydsim.control as pydctl
 import pydsim.nbutils as pydnb
+import pydsim.data_types as pyddtypes
 
 import pysp
 import pynoise
@@ -20,17 +21,17 @@ class Buck:
 
     def __init__(self, R, L, C, f_pwm=None):
 
-        self.circuit = self.__Circuit(R, L, C, f_pwm)
-        self.model = self.__Model()
-        self.sim_params = self.__SimParams()
-        self.signals = self.__Signals()
+        self.circuit = pyddtypes.TwoPoleCircuit(R, L, C, f_pwm)
+        self.model = pyddtypes.BuckModel()
+        self.sim_params = pyddtypes.SimParams()
+        self.signals = pyddtypes.Signals()
 
         self.ctlparams = None
         self.ctl = None
 
 
     def set_sim_params(self, dt, t_sim, max_step=1e-6):
-        self.sim_params._set_step(dt)
+        self.sim_params._set_dt(dt)
         self.sim_params._set_t_sim(t_sim)
         self.sim_params._set_max_step(max_step)
 
@@ -126,7 +127,7 @@ class Buck:
         # Sim params
         dt = self.sim_params.dt
         t_sim = self.sim_params.t_sim
-        dt_max = self.sim_params.dt_max
+        max_step = self.sim_params.max_step
 
         # Model
         self.model._set_model(R, L, C, dt)
@@ -205,7 +206,7 @@ class Buck:
 
             if i_sw != i_s:
                 t_span = (t_s, t_sw)
-                sol = scipy.integrate.solve_ivp(peode.buck_f, t_span, x0, args=(Am, Bm, v_in[i]), vectorized=True, max_step=dt_max, dense_output=True)
+                sol = scipy.integrate.solve_ivp(peode.buck_f, t_span, x0, args=(Am, Bm, v_in[i]), vectorized=True, max_step=max_step, dense_output=True)
                 x0 = (sol.y[0, -1], sol.y[1, -1])
                 if i_sw != i_e:
                     t_eval = t[i_s:i_sw]
@@ -220,7 +221,7 @@ class Buck:
 
             if i_sw != i_e:
                 t_span = (t_sw, t_e)
-                sol = scipy.integrate.solve_ivp(peode.buck_f, t_span, x0, args=(Am, Bm, 0), vectorized=True, max_step=dt_max, dense_output=True)
+                sol = scipy.integrate.solve_ivp(peode.buck_f, t_span, x0, args=(Am, Bm, 0), vectorized=True, max_step=max_step, dense_output=True)
                 x0 = (sol.y[0, -1], sol.y[1, -1])
                 t_eval = t[i_sw:i_e + 1]
                 x_eval = sol.sol(t_eval)
@@ -234,126 +235,3 @@ class Buck:
                 
         _tf = time.time()
         print('Sim time: {:.4f} s\n'.format(_tf - _ti))
-
-
-    class __Circuit:
-
-        def __init__(self, R, L, C, f_pwm):
-
-            self.R = R
-            self.L = L
-            self.C = C
-            
-            if f_pwm is not None:
-                self.f_pwm = f_pwm
-                self.t_pwm = 1 / f_pwm
-            else:
-                self.f_pwm = None
-                self.t_pwm = None
-
-
-        def _get_params(self):
-
-            return self.R, self.L, self.C, self.f_pwm
-        
-
-        def _set_f_pwm(self, f_pwm):
-            
-            self.f_pwm = f_pwm
-            self.t_pwm = 1 / f_pwm
-
-
-    class __Signals:
-
-        def __init__(self):
-
-            self.x_ini = np.array([0.0, 0.0])
-            self.t = None
-            self.t_p = None
-            self.x = None
-            self._x = None
-            self.v_in = None
-            self.v_ref = None
-
-            self.d = None
-            self.pwm = None
-
-        def _set_vectors(self, dt, t_pwm, t_sim):
-
-            n = round(t_sim / dt)
-            self.t = dt * np.arange(n)
-            self.x = np.zeros((n, 2))
-            self._x = np.zeros((n + 1, 2))
-            self.pwm = np.zeros(n)
-            self.d = np.zeros(n)
-
-            n_cycles = round(t_sim / t_pwm)
-            self.t_p = t_pwm * np.arange(n_cycles)
-            self.v_in = np.zeros(n_cycles)
-            self.v_ref = np.zeros(n_cycles)
-            
-
-    class __Model:
-
-        def __init__(self):
-
-            self.A = None
-            self.B = None
-            self.C = None
-
-            self.Ad = None
-            self.Bd = None
-            self.Cd = None
-
-            self.dt = None
-            
-
-        def _set_model(self, R, L, C, dt):
-
-            self.dt = dt
-            
-            A, B, C = self._continuous(R, L, C)
-            self.A = A; self.B = B; self.C = C
-            
-            self.Ad, self.Bd, self.Cd = self._discrete(A, B, C, dt)
-            
-            
-        def _continuous(self, R, L, C):
-            
-            A = np.array([[0,      -1/L],
-                          [1/C,    -1/R/C]])
-            
-            B = np.array([[1/L],
-                          [0]])
-            
-            C = np.array([0, 1])
-
-            return (A, B, C)
-        
-
-        def _discrete(self, A, B, C, dt):
-            
-            Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((self.A, self.B, self.C, 0), self.dt, method='bilinear')
-
-            return (Ad, Bd, Cd)
-
-
-    class __SimParams:
-
-        def __init__(self, dt=None, t_sim=None, dt_max=1e-6):
-            
-            self.dt = dt
-            self.t_sim = t_sim
-            self.dt_max = dt_max
-
-            
-        def _set_step(self, dt):
-            self.dt = dt
-            
-
-        def _set_t_sim(self, t_sim):
-            self.t_sim = t_sim
-
-
-        def _set_max_step(self, dt_max):
-            self.dt_max = dt_max
