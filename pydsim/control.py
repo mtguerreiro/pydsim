@@ -786,7 +786,6 @@ class LQR:
         e = (r - x[1])
         zeta = self.zeta_1 + self.dt / 2 * (e + self.e_1)
 
-        #print(self.K_x)
         u_sfb = -self.K_x @ x + self.K_z * zeta
 
         self.zeta_1 = zeta

@@ -71,27 +71,3 @@ t_obs = buck.signals.t_p
 
 plt.plot(t_sfb / 1e-3, x_sfb, label='sfb')
 plt.plot(t_obs / 1e-3, x_obs, '--')
-##plt.figure(figsize=(10,6))
-##
-##ax = plt.subplot(3,1,1)
-##plt.plot(t_sfb / 1e-3, x_sfb[:, 1], label='sfb')
-##plt.grid()
-##plt.legend()
-##plt.xlabel('Time (ms)')
-##plt.ylabel('Voltage (V)')
-##
-##plt.subplot(3,1,2, sharex=ax)
-##plt.plot(t_sfb / 1e-3, x_sfb[:, 0], label='sfb')
-##plt.grid()
-##plt.legend()
-##plt.xlabel('Time (ms)')
-##plt.ylabel('Current (A)')
-##
-##plt.subplot(3,1,3, sharex=ax)
-##plt.plot(t_sfb / 1e-3, u_sfb, label='sfb')
-##plt.grid()
-##plt.legend()
-##plt.xlabel('Time (ms)')
-##plt.ylabel('$u$')
-##
-##plt.tight_layout()
