@@ -2,6 +2,7 @@ import math
 import scipy
 import numpy as np
 import pyctl as ctl
+import pyoctl.opt as octl
 import pydsim.utils as pydutils
 
 import sys
@@ -446,6 +447,8 @@ class SFB:
         K_x = self._acker(Aa, Ba, poles)
         self.K_x = K_x[0, :-1]
         self.K_z = K_x[0, -1]
+        print('K_x:', self.K_x)
+        print('K_z:', self.K_z)
 
 
     def _aug_model(self, A, B, C):
@@ -683,6 +686,115 @@ class SFB_OBS:
         return u_sfb
 
 
+class LQR:
+
+    def __init__(self):
+
+        # Continuous model
+        self.A = None
+        self.B = None
+        self.C = None
+        self.v_in = None
+
+        # Augmented model
+        self.Aa = None
+        self.Ba = None
+        self.Ca = None
+        self.v_in = None
+        
+        # Discrete model for LQR
+        self.dt = None
+        self.Ad = None
+        self.Bd = None
+        self.Cd = None
+        
+        # LQR parameters
+        self.Q = None
+        self.R = None
+        self.H = None
+        self.N = 2000
+
+        # LQR feedback gain
+        self.F = None
+
+        # Feedback gains
+        self.K_x = None
+        self.K_z = None
+
+        # Controller states
+        self.e_1 = 0
+        self.zeta_1 = 0
+
+
+    def _set_params(self, A, B, C, v_in, dt, Q, R, H, N):
+
+        # Continuous model
+        self.A = A
+        self.B = B * v_in
+        self.C = C
+        self.dt = dt
+
+        # LQR parameters
+        self.Q = Q
+        self.R = R
+        self.H = H
+        self.N = N
+
+        # Augmented model for state feedback with integrator
+        Aa, Ba, Ca = self._aug_model(A, B * v_in, C)
+        self.Aa, self.Ba, self.Ca = Aa, Ba, Ca
+
+        # Discretization of the augmented model
+        Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((Aa, Ba, Ca, 0), dt, method='bilinear')
+        self.Ad, self.Bd, self.Cd = Ad, Bd, Cd
+
+        F = -octl.dynprg_gains(Ad, Bd, Q, R, H, N)
+        self.F = F[0]
+        self.K_x = F[0, :2]
+        self.K_z = F[0, -1]
+        print('K_x:', self.K_x)
+        print('K_z:', self.K_z)
+
+
+    def _aug_model(self, A, B, C):
+        
+        Aa = np.zeros((3,3))
+        Ba = np.zeros((3,1))
+        Ca = np.zeros((1,3))
+
+        Aa[:2, :2] = A
+        Aa[2, :2] = C
+        Ba[:2, 0] = B[:, 0]
+        Ca[0, :2] = C
+
+        return Aa, Ba, Ca
+    
+
+    def meas(self, signals, i, j):
+        x = signals._x[i]
+        r = signals.v_ref[j]
+
+        sigs = [x, r]
+        
+        return sigs
+    
+
+    def control(self, sigs):
+        x = sigs[0]
+        r = sigs[1]
+
+        e = (r - x[1])
+        zeta = self.zeta_1 + self.dt / 2 * (e + self.e_1)
+
+        #print(self.K_x)
+        u_sfb = -self.K_x @ x + self.K_z * zeta
+
+        self.zeta_1 = zeta
+        self.e_1 = e
+        
+        return u_sfb
+
+    
 class FBL:
 
     def __init__(self):
