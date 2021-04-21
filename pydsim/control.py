@@ -681,7 +681,58 @@ class SFB_OBS:
         #self.x_obs.append(self.x_bar_k_1)
         
         return u_sfb
+
+
+class FBL:
+
+    def __init__(self):
+
+        self.R = None
+        self.L = None
+
+        self.ki = None
+        
+
+    def _set_params(self, R, L, ki):
+
+        self.R = R
+        self.L = L
+
+        self.ki = ki
+
+
+    def meas(self, signals, i, j):
+
+        x = signals._x[i]
+        r = signals.v_ref[j] #/ signals.v_in[0]
+        v_in = signals.v_in[j]
+
+        sigs = [x, r, v_in]
+
+        return sigs
+
     
+    def control(self, sigs):
+
+        R = self.R
+        L = self.L
+        ki = self.ki
+        
+        x = sigs[0]
+        v_ref = sigs[1]
+        v_in = sigs[2]
+
+        il = x[0]
+        vc = x[1]
+
+        i_ref = v_ref ** 2 / (R * v_in)
+
+        e = i_ref - il
+
+        u = 1 + L / vc * (ki * e - v_in / L)
+
+        return u
+
 ##def set_controller(controller):
 ##    ctlrs = [c[1] for c in inspect.getmembers(sys.modules[__name__], inspect.isclass)]
 ##
