@@ -503,6 +503,108 @@ class SFB:
         return u_sfb
 
 
+class LinSFB:
+    
+    def __init__(self):
+
+        # Controller parameters
+        self.dt = None
+        self.v_in = None
+
+        # Poles
+        self.poles = None
+
+        # Model and augmented model
+        self.A = None
+        self.B = None
+        self.C = None
+
+        self.Aa = None
+        self.Ba = None
+
+        # Gains
+        self.K_x = None
+        self.K_z = None
+
+        # Controlle states
+        self.e_1 = 0
+        self.zeta_1 = 0
+
+    def _set_params(self, A, B, C, poles, v_in, dt):
+
+        self.poles = poles
+        self.v_in = v_in
+        self.dt = dt
+
+        self.A = A
+        self.B = B
+        self.C = C
+
+        # Augmented model
+        Aa, Ba = self._aug_model(A, B, C)
+        
+        # Ackermann
+        K_x = self._acker(Aa, Ba, poles)
+        self.K_x = K_x[0, :-1]
+        self.K_z = K_x[0, -1]
+        print('K_x:', self.K_x)
+        print('K_z:', self.K_z)
+
+
+    def _aug_model(self, A, B, C):
+        
+        Aa = np.zeros((3,3))
+        Ba = np.zeros((3,1))        
+
+        Aa[:2, :2] = A
+        Aa[2, :2] = C
+        Ba[:2, 0] = B[:, 0]
+
+        return Aa, Ba
+
+
+    def _acker(self, Aa, Ba, p):
+
+        c_eq = np.polymul(np.polymul([1, -p[0]], [1, -p[1]]).real, [1, -p[2]]).real
+
+        Mc = np.zeros((3,3))
+        Mc[:, 0] = Ba[:, 0]
+        Mc[:, 1] = (Aa @ Ba)[:, 0]
+        Mc[:, 2] = (Aa @ Aa @ Ba)[:, 0]
+
+        Phi_d = c_eq[0] * Aa @ Aa @ Aa + c_eq[1] * Aa @ Aa + c_eq[2] * Aa + c_eq[3] * np.eye(3)
+
+        Kx = np.array([[0, 0, 1]]) @ np.linalg.inv(Mc) @ Phi_d
+
+        return Kx
+
+
+    def meas(self, signals, i, j):
+        x = signals._x[i] - signals.x_lp
+        r = signals.v_ref[j]
+        u_lp = signals.u_lp
+
+        sigs = [x, r, u_lp]
+        
+        return sigs
+    
+
+    def control(self, sigs):
+        x = sigs[0]
+        r = sigs[1]
+        u_lp = sigs[2]
+
+        e = (0 + x[1])
+        zeta = self.zeta_1 + self.dt / 2 * (e + self.e_1)
+        
+        u_sfb = -(self.K_x @ x + self.K_z * zeta)
+
+        self.zeta_1 = zeta
+        self.e_1 = e
+        
+        return u_sfb + u_lp
+    
+
 class SFB_OBS:
     
     def __init__(self):

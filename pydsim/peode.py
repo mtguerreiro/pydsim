@@ -290,6 +290,13 @@ class Boost:
             ki = self.ctlparams['ki']
             ctl._set_params(R, L, ki)
 
+        elif type(ctl) is pydctl.LinSFB:
+            t_pwm = self.circuit.t_pwm
+            A, B, C = self.model.A, self.model.B, self.model.C
+            v_in = self.signals.v_in[0]
+            poles = params['poles']
+            ctl._set_params(A, B, C, poles, v_in, t_pwm)
+            
         else:
             v_ref = self.signals.v_ref[0]
             v_in = self.signals.v_in[0]
@@ -337,7 +344,7 @@ class Boost:
             v_in = self.v_in * np.ones(n_cycles)
 
         # --- Sets model ---
-        self.model._set_model(R, L, C, v_in[0], v_ref[0], dt)
+        self.model._set_model(R, L, C, v_ref[0], v_in[0], dt)
         Am = self.model.A; Bm = self.model.B; Cm = self.model.C
 
         # --- Sets signals ---
@@ -345,6 +352,8 @@ class Boost:
         sig._set_vectors(dt, t_pwm, t_sim)
         sig.v_in[:] = v_in[:]
         sig.v_ref[:] = v_ref[:]
+        sig.x_lp = self.model.x_lp
+        sig.u_lp = self.model.u_lp
 
         sig.x[0, :] = sig.x_ini[:]
         sig._x[0, :] = sig.x_ini[:]

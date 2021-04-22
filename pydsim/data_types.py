@@ -16,6 +16,9 @@ class Signals:
 
         self.d = None
         self.pwm = None
+
+        self.x_lp = np.array([0.0, 0.0])
+        self.d_lp = 0
         
 
     def _set_vectors(self, dt, t_pwm, t_sim):
@@ -184,8 +187,9 @@ class BoostLinModel:
 
         # Linearized continuos model
         Am = np.array([[0, -(1 - u_lp) / L], [(1 - u_lp) / C, -1 / R / C]])
-        Bm = np.array([[-1 / (1 - u_lp) / L], [1 / ((1 - u_lp) * u_lp * R * C)]])
+        Bm = np.array([[v_in / (1 - u_lp) / L], [-v_in / ((1 - u_lp) * u_lp * R * C)]])
         Cm = np.array([0, 1])
+        self.A, self.B, self.C = Am, Bm, Cm
 
         # Discrete Model
         if dt is not None:
