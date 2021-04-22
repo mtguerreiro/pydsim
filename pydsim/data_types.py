@@ -81,9 +81,44 @@ class TwoPoleCircuit:
         self.t_pwm = 1 / f_pwm
 
 
+class SSModel:
+
+    def __init__(self):
+
+        self.A = None
+        self.B = None
+        self.C = None
+
+        self.Ad = None
+        self.Bd = None
+        self.Cd = None
+
+        self.dt = None
+        
+
+    def _set_model(self, A, B, C, dt=None):
+
+        self.A, self.B, self.C = A, B, C
+
+        if dt is not None:
+            Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((A, B, C, 0), dt, method='bilinear')
+            self.Ad, self.Bd, self.Cd = Ad, Bd, Cd
+            self.dt
+
+    def _get_model(self):
+
+        return (self.A, self.B, self.C)
+
+    def _get_model_discrete(self):
+
+        return (self.Ad, self.Bd, self.Cd, self.dt)
+
+        
 class BuckModel:
     
     def __init__(self):
+
+        self._model = SSModel()
 
         self.A = None
         self.B = None
@@ -99,15 +134,8 @@ class BuckModel:
     def _set_model(self, R, L, C, dt):
 
         self.dt = dt
-        
-        A, B, C = self._continuous(R, L, C)
-        self.A = A; self.B = B; self.C = C
-        
-        self.Ad, self.Bd, self.Cd = self._discrete(A, B, C, dt)
-        
-        
-    def _continuous(self, R, L, C):
-        
+
+        # Continuous model
         A = np.array([[0,      -1/L],
                       [1/C,    -1/R/C]])
         
@@ -116,11 +144,11 @@ class BuckModel:
         
         C = np.array([0, 1])
 
-        return (A, B, C)
-    
+        self.A, self.B, self.C = A, B, C
 
-    def _discrete(self, A, B, C, dt):
+        self._model._set_model(A, B, C, dt)
+
+        # Discrete Model
+        Ad, Bd, Cd, _ = self._model._get_model_discrete()
+        self.Ad, self.Bd, self.Cd = Ad, Bd, Cd
         
-        Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((self.A, self.B, self.C, 0), self.dt, method='bilinear')
-
-        return (Ad, Bd, Cd)
