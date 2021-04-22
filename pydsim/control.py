@@ -712,7 +712,7 @@ class LQR:
         self.Q = None
         self.R = None
         self.H = None
-        self.N = 2000
+        self.N = None
 
         # LQR feedback gain
         self.F = None

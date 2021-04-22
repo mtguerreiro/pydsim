@@ -84,7 +84,7 @@ class TwoPoleCircuit:
 class SSModel:
 
     def __init__(self):
-
+        
         self.A = None
         self.B = None
         self.C = None
@@ -94,32 +94,37 @@ class SSModel:
         self.Cd = None
 
         self.dt = None
+
+        self.x_lp = None
+        self.u_lp = None
         
 
-    def _set_model(self, A, B, C, dt=None):
+    def _set_model(self, A, B, C, dt=None, x_lp=None, u_lp=None):
 
         self.A, self.B, self.C = A, B, C
+        self.dt = dt
 
         if dt is not None:
             Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((A, B, C, 0), dt, method='bilinear')
             self.Ad, self.Bd, self.Cd = Ad, Bd, Cd
-            self.dt
+
+        self.x_lp, self.u_lp = x_lp, u_lp
+        
 
     def _get_model(self):
 
         return (self.A, self.B, self.C)
+    
 
     def _get_model_discrete(self):
 
         return (self.Ad, self.Bd, self.Cd, self.dt)
-
+    
         
 class BuckModel:
     
     def __init__(self):
-
-        self._model = SSModel()
-
+        
         self.A = None
         self.B = None
         self.C = None
@@ -131,9 +136,7 @@ class BuckModel:
         self.dt = None
         
 
-    def _set_model(self, R, L, C, dt):
-
-        self.dt = dt
+    def _set_model(self, R, L, C, dt=None):
 
         # Continuous model
         A = np.array([[0,      -1/L],
@@ -146,9 +149,46 @@ class BuckModel:
 
         self.A, self.B, self.C = A, B, C
 
-        self._model._set_model(A, B, C, dt)
+        # Discrete model
+        if dt is not None:
+            self.dt = dt
+            Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((A, B, C, 0), dt, method='bilinear')
+            self.Ad, self.Bd, self.Cd = Ad, Bd, Cd     
+
+
+class BoostLinModel:
+    
+    def __init__(self):
+
+        self.A = None
+        self.B = None
+        self.C = None
+
+        self.Ad = None
+        self.Bd = None
+        self.Cd = None
+
+        self.dt = None
+
+        self.x_lp = None
+        self.u_lp = None
+        
+
+    def _set_model(self, R, L, C, v_ref, v_in, dt=None):
+
+        u_lp = 1 - v_in / v_ref
+        il_lp = (v_ref / R) / (1 - u_lp)
+
+        self.u_lp = u_lp
+        self.x_lp = np.array([il_lp, v_ref])
+
+        # Linearized continuos model
+        Am = np.array([[0, -(1 - u_lp) / L], [(1 - u_lp) / C, -1 / R / C]])
+        Bm = np.array([[-1 / (1 - u_lp) / L], [1 / ((1 - u_lp) * u_lp * R * C)]])
+        Cm = np.array([0, 1])
 
         # Discrete Model
-        Ad, Bd, Cd, _ = self._model._get_model_discrete()
-        self.Ad, self.Bd, self.Cd = Ad, Bd, Cd
-        
+        if dt is not None:
+            self.dt = dt
+            Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((Am, Bm, Cm, 0), dt, method='bilinear')
+            self.Ad, self.Bd, self.Cd = Ad, Bd, Cd

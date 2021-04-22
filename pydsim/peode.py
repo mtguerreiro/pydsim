@@ -250,7 +250,7 @@ class Boost:
     def __init__(self, R, L, C, f_pwm=None):
 
         self.circuit = pyddtypes.TwoPoleCircuit(R, L, C, f_pwm)
-        self.model = pyddtypes.BuckModel()
+        self.model = pyddtypes.BoostLinModel()
         self.sim_params = pyddtypes.SimParams()
         self.signals = pyddtypes.Signals()
 
@@ -308,10 +308,10 @@ class Boost:
         
         return np.array([il_dot, vc_dot])
 
-    
+        
     def sim(self, v_ref, v_in=None, controller=pydctl.OL):
 
-        #  --- Set model and params for simulation ---
+        #  --- Set params for simulation ---
         # Circuit params
         R = self.circuit.R; L = self.circuit.L; C = self.circuit.C
         f_pwm = self.circuit.f_pwm
@@ -321,10 +321,6 @@ class Boost:
         dt = self.sim_params.dt
         t_sim = self.sim_params.t_sim
         max_step = self.sim_params.max_step
-
-        # Model
-        self.model._set_model(R, L, C, dt)
-        Am = self.model.A; Bm = self.model.B; Cm = self.model.C
 
         # Run params
         n = round(t_sim / dt)
@@ -339,6 +335,10 @@ class Boost:
             v_in = v_in * np.ones(n_cycles)
         elif v_in is None:
             v_in = self.v_in * np.ones(n_cycles)
+
+        # --- Sets model ---
+        self.model._set_model(R, L, C, v_in[0], v_ref[0], dt)
+        Am = self.model.A; Bm = self.model.B; Cm = self.model.C
 
         # --- Sets signals ---
         sig = self.signals
