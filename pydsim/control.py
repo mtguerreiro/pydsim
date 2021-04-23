@@ -605,7 +605,7 @@ class LinSFB:
         return u_sfb + u_lp
     
 
-class SFB_OBS:
+class SFB_DOBS:
     
     def __init__(self):
 
@@ -679,10 +679,6 @@ class SFB_OBS:
         print(K_o)
 
         Ao = Aao - K_o * Cao
-#        Ao = np.zeros((3, 3))
-#        Ao[:2, :2] = A - K_o * C
-#        Ao[:2, 2] = B[:, 0] * v_in
-#        Ao[-1, -1] = 1
         
         Bo = np.zeros((3,2))
         Bo[:2, 0] = B[:, 0] * v_in

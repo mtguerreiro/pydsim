@@ -58,7 +58,7 @@ p3_o = 5 * p1_o.real
 # Sim
 sfb_params = {'poles': [p1, p2, p3], 'poles_o': [p1_o, p2_o, p3_o]}
 buck.set_ctlparams(sfb_params)
-buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.SFB_OBS)
+buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.SFB_DOBS)
 
 t_sfb = buck.signals.t
 x_sfb = buck.signals.x
