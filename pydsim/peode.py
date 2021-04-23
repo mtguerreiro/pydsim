@@ -95,6 +95,14 @@ class Buck:
             poles = params['poles']
             ctl._set_params(A, B, C, poles, v_in, t_pwm)
 
+        elif type(ctl) is pydctl.SFB_LOBS:
+            t_pwm = self.circuit.t_pwm
+            A, B, C = self.model.A, self.model.B, self.model.C
+            v_in = self.signals.v_in[0]
+            poles = params['poles']
+            poles_o = params['poles_o']
+            ctl._set_params(A, B, C, poles, poles_o, v_in, t_pwm)
+            
         elif type(ctl) is pydctl.SFB_DOBS:
             t_pwm = self.circuit.t_pwm
             A, B, C = self.model.A, self.model.B, self.model.C
