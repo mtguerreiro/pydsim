@@ -15,14 +15,14 @@ v_in_step = -3
 v_ref = 5
 
 # Sim time
-t_sim = 2e-3
+t_sim = 5e-3
 
 # PWM frequency
 f_pwm = 200e3
 
 # Step size for simulation
 max_step = 1e-6
-dt = 1 / f_pwm / 50
+dt = 1 / f_pwm / 500
 
 # Specs for state feedback
 Ts = 0.5e-3
@@ -43,7 +43,7 @@ p1 = -zeta * wn + wn * np.sqrt(zeta**2 - 1, dtype=complex)
 p2 = np.conj(p1)
 p3 = 10 * p1.real
 
-sfb_params = {'poles': [p1, p2, p3]}
+sfb_params = {'poles': [p1, p2]}
 buck.set_ctlparams(sfb_params)
 buck.sim(v_ref=v_ref, v_in=v_in_p, controller=pyd.control.SFB)
 
@@ -51,11 +51,12 @@ t_sfb = buck.signals.t
 x_sfb = buck.signals.x
 u_sfb = buck.signals.d
 
-##buck.set_f_pwm(f_pwm / 2)
-##buck.sim(v_ref=v_ref, v_in=v_in, controller=pyd.control.SFB)
-##t_sfb1 = buck.signals.t
-##x_sfb1 = buck.signals.x
-##u_sfb1 = buck.signals.d
+sfbi_params = {'poles': [p1, p2, p3]}
+buck.set_ctlparams(sfbi_params)
+buck.sim(v_ref=v_ref, v_in=v_in_p, controller=pyd.control.SFB_I)
+t_sfbi = buck.signals.t
+x_sfbi = buck.signals.x
+u_sfbi = buck.signals.d
 
 
 # --- Results ---
@@ -63,6 +64,7 @@ plt.figure(figsize=(10,6))
 
 ax = plt.subplot(3,1,1)
 plt.plot(t_sfb / 1e-3, x_sfb[:, 1], label='sfb')
+plt.plot(t_sfbi / 1e-3, x_sfbi[:, 1], label='sfb_i')
 plt.grid()
 plt.legend()
 plt.xlabel('Time (ms)')
@@ -70,6 +72,7 @@ plt.ylabel('Voltage (V)')
 
 plt.subplot(3,1,2, sharex=ax)
 plt.plot(t_sfb / 1e-3, x_sfb[:, 0], label='sfb')
+plt.plot(t_sfbi / 1e-3, x_sfbi[:, 0], label='sfb_i')
 plt.grid()
 plt.legend()
 plt.xlabel('Time (ms)')
@@ -77,6 +80,7 @@ plt.ylabel('Current (A)')
 
 plt.subplot(3,1,3, sharex=ax)
 plt.plot(t_sfb / 1e-3, u_sfb, label='sfb')
+plt.plot(t_sfbi / 1e-3, u_sfbi, label='sfb_i')
 plt.grid()
 plt.legend()
 plt.xlabel('Time (ms)')

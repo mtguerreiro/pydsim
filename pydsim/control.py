@@ -51,7 +51,7 @@ def set_controller_buck(buck, controller, params):
             ref = None
         ctl._set_params(A, B, C, t_pwm, v_in, n_p, n_c, r_w, ref)
 
-    elif type(ctl) is pydctl.SFB:
+    elif type(ctl) is pydctl.SFB or type(ctl) is pydctl.SFB_I:
         t_pwm = buck.circuit.t_pwm
         A, B, C = buck.model.A, buck.model.B, buck.model.C
         v_in = buck.signals.v_in[0]
@@ -500,6 +500,75 @@ class SFB:
         self.B = None
         self.C = None
 
+        # Gains
+        self.K_x = None
+        
+
+    def _set_params(self, A, B, C, poles, v_in, dt):
+
+        self.poles = poles
+        self.v_in = v_in
+        self.dt = dt
+
+        self.A = A
+        self.B = B * v_in
+        self.C = C
+        
+        # Ackermann
+        K_x = self._acker(self.A, self.B, poles[:2])
+        self.K_x = K_x
+        print('K_x:', self.K_x)
+
+
+    def _acker(self, Aa, Ba, p):
+
+        c_eq = np.polymul([1, -p[0]], [1, -p[1]]).real
+
+        Mc = np.zeros((2,2))
+        Mc[:, 0] = Ba[:, 0]
+        Mc[:, 1] = (Aa @ Ba)[:, 0]
+
+        Phi_d = c_eq[0] * Aa @ Aa + c_eq[1] * Aa + c_eq[2] * np.eye(2)
+
+        Kx = np.array([[0, 1]]) @ np.linalg.inv(Mc) @ Phi_d
+
+        return Kx
+
+
+    def meas(self, signals, i, j):
+        x = signals._x[i]
+        r = signals.v_ref[j] / signals.v_in[0]
+
+        sigs = [x, r]
+        
+        return sigs
+    
+
+    def control(self, sigs):
+        x = sigs[0]
+        r = sigs[1]
+        
+        u_sfb = -self.K_x @ x + r
+        
+        return u_sfb[0]
+
+
+class SFB_I:
+    
+    def __init__(self):
+
+        # Controller parameters
+        self.dt = None
+        self.v_in = None
+
+        # Poles
+        self.poles = None
+
+        # Model and augmented model
+        self.A = None
+        self.B = None
+        self.C = None
+
         self.Aa = None
         self.Ba = None
 
@@ -583,7 +652,7 @@ class SFB:
         
         return u_sfb
 
-
+    
 class LinSFB:
     
     def __init__(self):
