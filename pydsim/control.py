@@ -516,7 +516,7 @@ class SFB:
         
         # Ackermann
         K_x = self._acker(self.A, self.B, poles[:2])
-        self.K_x = K_x
+        self.K_x = K_x[0, :]
         print('K_x:', self.K_x)
 
 
@@ -550,7 +550,7 @@ class SFB:
         
         u_sfb = -self.K_x @ x + r
         
-        return u_sfb[0]
+        return u_sfb
 
 
 class SFB_I:
