@@ -1,4 +1,6 @@
 import pydsim as pyd
+import pydsim.control as pydctl
+import pydsim.observer as pydobs
 import numpy as np
 import matplotlib.pyplot as plt
 plt.ion()
@@ -57,9 +59,9 @@ p3_o = 5 * p1_o.real
 
 # Sim
 #sfb_params = {'poles': [p1, p2, p3], 'poles_o': [p1_o, p2_o, p3_o]}
-sfb_params = {'poles': [p1, p2, p3], 'poles_o': [p1_o, p2_o]}
+sfb_params = {'poles': [p1, p2, p3], 'obs': pydobs.Luenberger,'poles_o': [p1_o, p2_o]}
 buck.set_ctlparams(sfb_params)
-buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.SFB_LOBS)
+buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pydctl.SFB_I)
 
 t_sfb = buck.signals.t
 x_sfb = buck.signals.x

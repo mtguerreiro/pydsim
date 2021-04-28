@@ -52,20 +52,25 @@ def set_controller_buck(buck, controller, params):
             ref = None
         ctl._set_params(A, B, C, t_pwm, v_in, n_p, n_c, r_w, ref)
 
-    elif type(ctl) is pydctl.SFB or type(ctl) is pydctl.SFB_I:
+    elif type(ctl) is pydctl.SFB:
         t_pwm = buck.circuit.t_pwm
         A, B, C = buck.model.A, buck.model.B, buck.model.C
         v_in = buck.signals.v_in[0]
         poles = params['poles']
         ctl._set_params(A, B, C, poles, v_in, t_pwm)
 
-    elif type(ctl) is pydctl.SFB_LOBS:
+    elif type(ctl) is pydctl.SFB_I:
         t_pwm = buck.circuit.t_pwm
         A, B, C = buck.model.A, buck.model.B, buck.model.C
         v_in = buck.signals.v_in[0]
         poles = params['poles']
-        poles_o = params['poles_o']
-        ctl._set_params(A, B, C, poles, poles_o, v_in, t_pwm)
+        if 'obs' in params:
+            obs = params['obs']
+            poles_o = params['poles_o']
+        else:
+            obs = None
+            poles_o = None
+        ctl._set_params(A, B, C, poles, v_in, t_pwm, obs, poles_o)
         
     elif type(ctl) is pydctl.SFB_DOBS:
         t_pwm = buck.circuit.t_pwm
@@ -516,24 +521,12 @@ class SFB:
         self.C = C
         
         # Ackermann
-        K_x = self._acker(self.A, self.B, poles[:2])
-        self.K_x = K_x[0, :]
-        print('K_x:', self.K_x)
+        sp = scipy.signal.place_poles(A, B * v_in, poles)
+        self.Kx = sp.gain_matrix[0, :]
+        #K_x = self._acker(self.A, self.B, poles[:2])
+        #self.K_x = K_x[0, :]
 
-
-    def _acker(self, Aa, Ba, p):
-
-        c_eq = np.polymul([1, -p[0]], [1, -p[1]]).real
-
-        Mc = np.zeros((2,2))
-        Mc[:, 0] = Ba[:, 0]
-        Mc[:, 1] = (Aa @ Ba)[:, 0]
-
-        Phi_d = c_eq[0] * Aa @ Aa + c_eq[1] * Aa + c_eq[2] * np.eye(2)
-
-        Kx = np.array([[0, 1]]) @ np.linalg.inv(Mc) @ Phi_d
-
-        return Kx
+        print('Kx:', self.Kx)
 
 
     def meas(self, signals, i, j):
@@ -549,109 +542,109 @@ class SFB:
         x = sigs[0]
         r = sigs[1]
         
-        u_sfb = -self.K_x @ x + r
+        u_sfb = -self.Kx @ x + r
         
         return u_sfb
 
 
-class SFB_I:
-    
-    def __init__(self):
-
-        # Controller parameters
-        self.dt = None
-        self.v_in = None
-
-        # Poles
-        self.poles = None
-
-        # Model and augmented model
-        self.A = None
-        self.B = None
-        self.C = None
-
-        self.Aa = None
-        self.Ba = None
-
-        # Gains
-        self.K_x = None
-        self.K_z = None
-
-        # Controlle states
-        self.e_1 = 0
-        self.zeta_1 = 0
-
-    def _set_params(self, A, B, C, poles, v_in, dt):
-
-        self.poles = poles
-        self.v_in = v_in
-        self.dt = dt
-
-        self.A = A
-        self.B = B * v_in
-        self.C = C
-
-        # Augmented model
-        Aa, Ba = self._aug_model(A, B * v_in, C)
-        
-        # Ackermann
-        K_x = self._acker(Aa, Ba, poles)
-        self.K_x = K_x[0, :-1]
-        self.K_z = K_x[0, -1]
-        print('K_x:', self.K_x)
-        print('K_z:', self.K_z)
-
-
-    def _aug_model(self, A, B, C):
-        
-        Aa = np.zeros((3,3))
-        Ba = np.zeros((3,1))        
-
-        Aa[:2, :2] = A
-        Aa[2, :2] = C
-        Ba[:2, 0] = B[:, 0]
-
-        return Aa, Ba
-
-
-    def _acker(self, Aa, Ba, p):
-
-        c_eq = np.polymul(np.polymul([1, -p[0]], [1, -p[1]]).real, [1, -p[2]]).real
-
-        Mc = np.zeros((3,3))
-        Mc[:, 0] = Ba[:, 0]
-        Mc[:, 1] = (Aa @ Ba)[:, 0]
-        Mc[:, 2] = (Aa @ Aa @ Ba)[:, 0]
-
-        Phi_d = c_eq[0] * Aa @ Aa @ Aa + c_eq[1] * Aa @ Aa + c_eq[2] * Aa + c_eq[3] * np.eye(3)
-
-        Kx = np.array([[0, 0, 1]]) @ np.linalg.inv(Mc) @ Phi_d
-
-        return Kx
-
-
-    def meas(self, signals, i, j):
-        x = signals._x[i]
-        r = signals.v_ref[j]
-
-        sigs = [x, r]
-        
-        return sigs
-    
-
-    def control(self, sigs):
-        x = sigs[0]
-        r = sigs[1]
-
-        e = (r - x[1])
-        zeta = self.zeta_1 + self.dt / 2 * (e + self.e_1)
-        
-        u_sfb = -self.K_x @ x + self.K_z * zeta
-
-        self.zeta_1 = zeta
-        self.e_1 = e
-        
-        return u_sfb
+##class SFB_I:
+##    
+##    def __init__(self):
+##
+##        # Controller parameters
+##        self.dt = None
+##        self.v_in = None
+##
+##        # Poles
+##        self.poles = None
+##
+##        # Model and augmented model
+##        self.A = None
+##        self.B = None
+##        self.C = None
+##
+##        self.Aa = None
+##        self.Ba = None
+##
+##        # Gains
+##        self.K_x = None
+##        self.K_z = None
+##
+##        # Controlle states
+##        self.e_1 = 0
+##        self.zeta_1 = 0
+##
+##    def _set_params(self, A, B, C, poles, v_in, dt):
+##
+##        self.poles = poles
+##        self.v_in = v_in
+##        self.dt = dt
+##
+##        self.A = A
+##        self.B = B * v_in
+##        self.C = C
+##
+##        # Augmented model
+##        Aa, Ba = self._aug_model(A, B * v_in, C)
+##        
+##        # Ackermann
+##        K_x = self._acker(Aa, Ba, poles)
+##        self.K_x = K_x[0, :-1]
+##        self.K_z = K_x[0, -1]
+##        print('K_x:', self.K_x)
+##        print('K_z:', self.K_z)
+##
+##
+##    def _aug_model(self, A, B, C):
+##        
+##        Aa = np.zeros((3,3))
+##        Ba = np.zeros((3,1))        
+##
+##        Aa[:2, :2] = A
+##        Aa[2, :2] = C
+##        Ba[:2, 0] = B[:, 0]
+##
+##        return Aa, Ba
+##
+##
+##    def _acker(self, Aa, Ba, p):
+##
+##        c_eq = np.polymul(np.polymul([1, -p[0]], [1, -p[1]]).real, [1, -p[2]]).real
+##
+##        Mc = np.zeros((3,3))
+##        Mc[:, 0] = Ba[:, 0]
+##        Mc[:, 1] = (Aa @ Ba)[:, 0]
+##        Mc[:, 2] = (Aa @ Aa @ Ba)[:, 0]
+##
+##        Phi_d = c_eq[0] * Aa @ Aa @ Aa + c_eq[1] * Aa @ Aa + c_eq[2] * Aa + c_eq[3] * np.eye(3)
+##
+##        Kx = np.array([[0, 0, 1]]) @ np.linalg.inv(Mc) @ Phi_d
+##
+##        return Kx
+##
+##
+##    def meas(self, signals, i, j):
+##        x = signals._x[i]
+##        r = signals.v_ref[j]
+##
+##        sigs = [x, r]
+##        
+##        return sigs
+##    
+##
+##    def control(self, sigs):
+##        x = sigs[0]
+##        r = sigs[1]
+##
+##        e = (r - x[1])
+##        zeta = self.zeta_1 + self.dt / 2 * (e + self.e_1)
+##        
+##        u_sfb = -self.K_x @ x + self.K_z * zeta
+##
+##        self.zeta_1 = zeta
+##        self.e_1 = e
+##        
+##        return u_sfb
 
     
 class LinSFB:
@@ -756,7 +749,7 @@ class LinSFB:
         return u_sfb + u_lp
     
 
-class SFB_LOBS:
+class SFB_I:
     
     def __init__(self):
 
@@ -786,28 +779,35 @@ class SFB_LOBS:
         self.zeta_1 = 0
 
         # Observer
-        self.obs = pydobs.Luenberger()
+        self.obs = None
 
 
-    def _set_params(self, A, B, C, poles, poles_o, v_in, dt):
-
-        self.poles = poles
-        self.poles_o = poles_o
-        self.v_in = v_in
-        self.dt = dt
+    def _set_params(self, A, B, C, poles, v_in, dt, obs=None, poles_o=None):
 
         self.A = A
         self.B = B * v_in
         self.C = C
 
+        self.poles = poles
+        self.v_in = v_in
+        self.dt = dt
+
+        self.poles_o = poles_o
+        self.obs = obs
+
         # Augmented model for state feedback with integrator
         Aa, Ba = self._aug_model(A, B * v_in, C)
         
-        K_x = self._acker(Aa, Ba, poles)
-        self.K_x = K_x[0, :-1]
-        self.K_z = K_x[0, -1]
+        # State feedback gains
+        sp = scipy.signal.place_poles(Aa, Ba, poles)
+        self.Kx = sp.gain_matrix[0, :-1]
+        self.Kz = sp.gain_matrix[0, -1]
+        print('Kx:', self.Kx)
 
-        self.obs._set_params(A, B * v_in, C, poles_o, dt)
+        # Set observer
+        if obs is not None:
+            self.obs = obs()
+            self.obs._set_params(A, B * v_in, C, poles_o, dt)
 
 
     def _aug_model(self, A, B, C):
@@ -821,36 +821,7 @@ class SFB_LOBS:
 
         return Aa, Ba
 
-
-    def _acker(self, Aa, Ba, p):
-
-        if len(p) == 2:
-
-            c_eq = np.polymul([1, -p[0]], [1, -p[1]]).real
-
-            Mc = np.zeros((2,2))
-            Mc[:, 0] = Ba[:, 0]
-            Mc[:, 1] = (Aa @ Ba)[:, 0]
-
-            Phi_d = c_eq[0] * Aa @ Aa + c_eq[1] * Aa + c_eq[2] * np.eye(2)
-
-            K_x = np.array([[0, 1]]) @ np.linalg.inv(Mc) @ Phi_d
-
-        elif len(p) == 3:
-            c_eq = np.polymul(np.polymul([1, -p[0]], [1, -p[1]]).real, [1, -p[2]]).real
-
-            Mc = np.zeros((3,3))
-            Mc[:, 0] = Ba[:, 0]
-            Mc[:, 1] = (Aa @ Ba)[:, 0]
-            Mc[:, 2] = (Aa @ Aa @ Ba)[:, 0]
-
-            Phi_d = c_eq[0] * Aa @ Aa @ Aa + c_eq[1] * Aa @ Aa + c_eq[2] * Aa + c_eq[3] * np.eye(3)
-
-            K_x = np.array([[0, 0, 1]]) @ np.linalg.inv(Mc) @ Phi_d
-            
-        return K_x
-
-
+                
     def meas(self, signals, i, j):
         x = signals._x[i]
         r = signals.v_ref[j] #/ signals.v_in[0]
@@ -868,14 +839,17 @@ class SFB_LOBS:
         r = sigs[1]
         y = x[1]
 
+        # Discrete integrator
         e = (r - y)
         zeta = self.zeta_1 + dt / 2 * (e + self.e_1)
-        
-        u_sfb = -self.K_x @ x + self.K_z * zeta
+
+        # State feedback + integrator
+        u_sfb = -self.Kx @ x + self.Kz * zeta
         if u_sfb > 1: u_sfb = 1
         elif u_sfb < 0: u_sfb = 0
-        
-        self.obs.estimate(y, u_sfb)
+
+        if self.obs is not None:
+            self.obs.estimate(y, u_sfb)
 
         self.zeta_1 = zeta
         self.e_1 = e
