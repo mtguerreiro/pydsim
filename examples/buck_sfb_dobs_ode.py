@@ -56,9 +56,10 @@ p2_o = np.conj(p1_o)
 p3_o = 5 * p1_o.real
 
 # Sim
-sfb_params = {'poles': [p1, p2, p3], 'poles_o': [p1_o, p2_o, p3_o]}
+#sfb_params = {'poles': [p1, p2, p3], 'poles_o': [p1_o, p2_o, p3_o]}
+sfb_params = {'poles': [p1, p2, p3], 'poles_o': [p1_o, p2_o]}
 buck.set_ctlparams(sfb_params)
-buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.SFB_DOBS)
+buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.SFB_LOBS)
 
 t_sfb = buck.signals.t
 x_sfb = buck.signals.x
@@ -66,7 +67,7 @@ u_sfb = buck.signals.d
 
 
 # --- Results ---
-x_obs = buck.ctl.get_sobs()
+x_obs = buck.ctl.obs.get_states()
 t_obs = buck.signals.t_p
 
 plt.plot(t_sfb / 1e-3, x_sfb, label='sfb')

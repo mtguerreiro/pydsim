@@ -5,6 +5,7 @@ import pyctl as ctl
 import pyoctl.opt as octl
 import pydsim.utils as pydutils
 import pydsim.control as pydctl
+import pydsim.observer as pydobs
 
 import sys
 import inspect
@@ -767,7 +768,7 @@ class SFB_LOBS:
         self.poles = None
         self.poles_o = None
 
-        # Plant and observer models
+        # Plant
         self.A = None
         self.B = None
         self.C = None
@@ -776,25 +777,16 @@ class SFB_LOBS:
         self.Ba = None
         self.Ca = None
 
-        self.Ao = None
-        self.Bo = None
-        self.Co = None
-
-        self.Aod = None
-        self.Bod = None
-        self.Cod = None
-
-        # State feedback and observer gains
+        # State feedback gains
         self.K_x = None
         self.K_z = None
-        self.K_o = None
 
-        # Controlle states
-        self.x_bar_k = np.zeros(2, dtype=np.float)
-        self.x_bar_k_1 = 0
-        self.x_obs = []
+        # Controller states
         self.e_1 = 0
         self.zeta_1 = 0
+
+        # Observer
+        self.obs = pydobs.Luenberger()
 
 
     def _set_params(self, A, B, C, poles, poles_o, v_in, dt):
@@ -815,29 +807,7 @@ class SFB_LOBS:
         self.K_x = K_x[0, :-1]
         self.K_z = K_x[0, -1]
 
-        # Observer system
-        Aao = A
-        Bao = B
-        Cao = C
-        
-        K_o = self._acker(Aao.T, np.array([Cao]).T, poles_o[:2]).T
-        self.K_o = K_o
-        print(K_o)
-
-        Ao = Aao - K_o * Cao
-
-        Bo = np.zeros((2,2))
-        Bo[:, 0] = B[:, 0] * v_in
-        Bo[:, 1] = K_o[:, 0]
-        
-        Co = C
-        
-        self.Ao = Ao
-        self.Bo = Bo
-        self.Co = Co
-
-        Aod, Bod, Cod, _, _ = scipy.signal.cont2discrete((Ao, Bo, Co, 0), dt, method='bilinear')
-        self.Aod, self.Bod, self.Cod = Aod, Bod, Cod
+        self.obs._set_params(A, B * v_in, C, poles_o, dt)
 
 
     def _aug_model(self, A, B, C):
@@ -881,14 +851,6 @@ class SFB_LOBS:
         return K_x
 
 
-    def get_sobs(self):
-
-        x_obs = np.array(self.x_obs)
-        n = (x_obs.shape[0], x_obs.shape[1])
-        
-        return x_obs.reshape(n)
-
-
     def meas(self, signals, i, j):
         x = signals._x[i]
         r = signals.v_ref[j] #/ signals.v_in[0]
@@ -900,7 +862,6 @@ class SFB_LOBS:
 
     def control(self, sigs):
 
-        Aod, Bod, Cod = self.Aod, self.Bod, self.Cod
         dt = self.dt
 
         x = sigs[0]
@@ -908,23 +869,17 @@ class SFB_LOBS:
         y = x[1]
 
         e = (r - y)
-        zeta = self.zeta_1 + self.dt / 2 * (e + self.e_1)
+        zeta = self.zeta_1 + dt / 2 * (e + self.e_1)
         
-        self.x_obs.append(self.x_bar_k)
         u_sfb = -self.K_x @ x + self.K_z * zeta
         if u_sfb > 1: u_sfb = 1
         elif u_sfb < 0: u_sfb = 0
         
-        
-        uo = np.array([u_sfb, y])
-        self.x_bar_k_1 = Aod @ self.x_bar_k + Bod @ uo
-        self.x_bar_k = self.x_bar_k_1
+        self.obs.estimate(y, u_sfb)
 
         self.zeta_1 = zeta
         self.e_1 = e
-        
-        #self.x_obs.append(self.x_bar_k_1)
-        
+                
         return u_sfb
 
     
