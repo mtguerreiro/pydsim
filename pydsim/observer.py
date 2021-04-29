@@ -32,7 +32,7 @@ class Luenberger:
         # Observer states
         self.x_bar_k = np.zeros(2, dtype=np.float)
         self.x_bar_k_1 = 0
-        self.x_obs = []
+        self.x_obs = [np.zeros(2, dtype=np.float)]
         
 
     def _set_params(self, A, B, C, poles, dt):
@@ -75,7 +75,7 @@ class Luenberger:
 
     def get_states(self):
         
-        x_obs = np.array(self.x_obs)
+        x_obs = np.array(self.x_obs[:-1])
         n = (x_obs.shape[0], x_obs.shape[1])
         
         return x_obs.reshape(n)
@@ -91,9 +91,109 @@ class Luenberger:
         uo = np.array([u, y])        
         self.x_bar_k_1 = self.Aod @ self.x_bar_k + self.Bod @ uo
         
-        self._save_state(self.x_bar_k)
+        self._save_state(self.x_bar_k_1)
 
         self.x_bar_k = self.x_bar_k_1
         
         return self.x_bar_k_1
+
         
+class DisturbanceObs:
+    
+    def __init__(self):
+
+        # Observer parameters
+        self.dt = None
+        self.poles = None
+        
+        # Plant and observer models
+        self.A = None
+        self.B = None
+        self.C = None
+
+        self.Ao = None
+        self.Bo = None
+        self.Co = None
+
+        self.Aod = None
+        self.Bod = None
+        self.Cod = None
+
+        # Observer gains
+        self.Ko = None
+
+        # Observer states
+        self.x_bar_k = np.zeros(3, dtype=np.float)
+        self.x_bar_k_1 = 0
+        self.x_obs = [np.zeros(3, dtype=np.float)]
+
+
+    def _set_params(self, A, B, C, poles, dt):
+        
+        self.poles = poles
+        self.dt = dt
+        
+        self.A, self.B, self.C = A, B, C
+        n = A.shape[0]
+
+        # Gains for disturbance observer      
+        Aao = np.zeros((3, 3))
+        Aao[:2, :2] = A
+        Aao[:2, 2] = B[:, 0]
+        Aao[-1, -1] = 1
+
+        Cao = np.zeros(3)
+        Cao[:2] = C
+        Cao = np.array([Cao])
+
+        sp = scipy.signal.place_poles(Aao.T, Cao.T, poles)
+        Ko = sp.gain_matrix.T
+        self.Ko = Ko
+
+        # Now builds continuous-time observer system with observer gains
+        Ao = Aao - Ko @ Cao
+        #Ao = Aao - Ko * Cao
+        
+        Bo = np.zeros((3,2))
+        Bo[:2, 0] = B[:, 0]
+        Bo[0:, 1] = Ko[:, 0]
+
+        Co = np.zeros((1, 3))
+        Co[0, :2] = C
+
+        self.Ao, self.Bo, self.Co = Ao, Bo, Co
+
+        # Discrete-time observer
+        Aod, Bod, Cod, _, _ = scipy.signal.cont2discrete((Ao, Bo, Co, 0), dt, method='bilinear')
+        self.Aod, self.Bod, self.Cod = Aod, Bod, Cod    
+
+
+    def _save_state(self, x):
+        
+        self.x_obs.append(self.x_bar_k)
+
+
+    def get_states(self):
+        
+        x_obs = np.array(self.x_obs[:-1])
+        n = (x_obs.shape[0], x_obs.shape[1])
+        
+        return x_obs.reshape(n)
+
+
+    def get_current_state(self):
+        
+        return self.x_obs[-1][:-1]
+    
+
+    def estimate(self, y, u):
+        
+        uo = np.array([u, y])
+        self.x_bar_k_1 = self.Aod @ self.x_bar_k + self.Bod @ uo
+        
+        self._save_state(self.x_bar_k_1)
+
+        self.x_bar_k = self.x_bar_k_1
+        
+        return self.x_bar_k_1[:-1]
+  
