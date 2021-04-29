@@ -541,8 +541,8 @@ class SFB:
         r = sigs[1]
         y = x[1]
 
-        #if self.obs is not None:
-        #   x = self.obs.get_current_state()
+        if self.obs is not None:
+           x = self.obs.get_current_state(y)
         
         u_sfb = -self.Kx @ x + r
 
@@ -645,7 +645,7 @@ class SFB_I:
         zeta = self.zeta_1 + dt / 2 * (e + self.e_1)
 
         if self.obs is not None:
-           x = self.obs.get_current_state()
+           x = self.obs.get_current_state(y)
             
         # State feedback + integrator
         u_sfb = -self.Kx @ x + self.Kz * zeta
