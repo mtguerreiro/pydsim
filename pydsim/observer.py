@@ -70,7 +70,7 @@ class Luenberger:
 
     def _save_state(self, x):
         
-        self.x_obs.append(self.x_bar_k)
+        self.x_obs.append(x)
 
 
     def get_states(self):
@@ -84,7 +84,6 @@ class Luenberger:
     def get_current_state(self, y):
 
         return self.x_bar_k_1
-        #return self.x_obs[-1]
 
     
     def estimate(self, y, u):
@@ -92,10 +91,10 @@ class Luenberger:
         uo = np.array([u, y])        
         self.x_bar_k_1 = self.Aod @ self.x_bar_k + self.Bod @ uo
         
+        self.x_bar_k = self.x_bar_k_1
+
         self._save_state(self.x_bar_k)
 
-        self.x_bar_k = self.x_bar_k_1
-        
         return self.x_bar_k_1
 
 
@@ -164,7 +163,7 @@ class LuenbergerC:
 
     def _save_state(self, x):
         
-        self.x_obs.append(self.x_bar_k)
+        self.x_obs.append(x)
 
 
     def get_states(self):
@@ -272,7 +271,7 @@ class DisturbanceObs:
 
     def _save_state(self, x):
         
-        self.x_obs.append(self.x_bar_k)
+        self.x_obs.append(x)
 
 
     def get_states(self):
@@ -285,7 +284,7 @@ class DisturbanceObs:
 
     def get_current_state(self, y):
         
-        return self.x_obs[-1][:-1]
+        return self.x_bar_k
     
 
     def estimate(self, y, u):
@@ -293,9 +292,9 @@ class DisturbanceObs:
         uo = np.array([u, y])
         self.x_bar_k_1 = self.Aod @ self.x_bar_k + self.Bod @ uo
         
-        self._save_state(self.x_bar_k_1)
-
         self.x_bar_k = self.x_bar_k_1
-        
+
+        self._save_state(self.x_bar_k)
+
         return self.x_bar_k_1[:-1]
   
