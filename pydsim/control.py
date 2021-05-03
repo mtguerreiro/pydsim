@@ -1,4 +1,3 @@
-import math
 import scipy
 import numpy as np
 import pyctl as ctl
@@ -6,9 +5,6 @@ import pyoctl.opt as octl
 import pydsim.utils as pydutils
 import pydsim.control as pydctl
 import pydsim.observer as pydobs
-
-import sys
-import inspect
 
 
 def set_controller_buck(buck, controller, params):
@@ -59,19 +55,14 @@ def set_controller_buck(buck, controller, params):
         poles = params['poles']
         if 'obs' in params:
             obs = params['obs']
-            poles_o = params['poles_o']
+            obs_params = params['obs_params']
+            obs_params['A'], obs_params['B'], obs_params['C'] = A, B * v_in, C
+            obs_params['dt'] = t_pwm
         else:
             obs = None
             poles_o = None
-        ctl._set_params(A, B, C, poles, v_in, t_pwm, obs, poles_o)
-        
-    elif type(ctl) is pydctl.SFB_DOBS:
-        t_pwm = buck.circuit.t_pwm
-        A, B, C = buck.model.A, buck.model.B, buck.model.C
-        v_in = buck.signals.v_in[0]
-        poles = params['poles']
-        poles_o = params['poles_o']
-        ctl._set_params(A, B, C, poles, poles_o, v_in, t_pwm)
+        ctl._set_params(A, B, C, poles, v_in, t_pwm, obs, obs_params)
+    
 
     elif type(ctl) is pydctl.LQR:
         t_pwm = buck.circuit.t_pwm
@@ -500,13 +491,13 @@ class SFB:
         self.C = None
 
         # Gains
-        self.K_x = None
+        self.Kx = None
 
         # Observer
         self.obs = None
         
 
-    def _set_params(self, A, B, C, poles, v_in, dt, obs=None, poles_o=None):
+    def _set_params(self, A, B, C, poles, v_in, dt, obs=None, obs_params=None):
 
         self.poles = poles
         self.v_in = v_in
@@ -524,7 +515,7 @@ class SFB:
         # Set observer
         if obs is not None:
             self.obs = obs()
-            self.obs._set_params(A, B * v_in, C, poles_o, dt)
+            self.obs._set_params(obs_params)
 
             
     def meas(self, signals, i, j):
@@ -541,8 +532,8 @@ class SFB:
         r = sigs[1]
         y = x[1]
 
-        #if self.obs is not None:
-        #   x = self.obs.get_current_state(y)
+        if self.obs is not None:
+           x = self.obs.get_current_state(y)
         
         u_sfb = -self.Kx @ x + r
 
@@ -573,8 +564,8 @@ class SFB_I:
         self.Ca = None
 
         # State feedback gains
-        self.K_x = None
-        self.K_z = None
+        self.Kx = None
+        self.Kz = None
 
         # Controller states
         self.e_1 = 0
@@ -584,7 +575,7 @@ class SFB_I:
         self.obs = None
 
 
-    def _set_params(self, A, B, C, poles, v_in, dt, obs=None, poles_o=None):
+    def _set_params(self, A, B, C, poles, v_in, dt, obs=None, obs_params=None):
 
         self.A = A
         self.B = B * v_in
@@ -608,7 +599,7 @@ class SFB_I:
         # Set observer
         if obs is not None:
             self.obs = obs()
-            self.obs._set_params(A, B * v_in, C, poles_o, dt)
+            self.obs._set_params(obs_params)
 
 
     def _aug_model(self, A, B, C):
@@ -644,8 +635,8 @@ class SFB_I:
         e = (r - y)
         zeta = self.zeta_1 + dt / 2 * (e + self.e_1)
 
-        #if self.obs is not None:
-        #   x = self.obs.get_current_state(y)
+        if self.obs is not None:
+           x = self.obs.get_current_state(y)
             
         # State feedback + integrator
         u_sfb = -self.Kx @ x + self.Kz * zeta
