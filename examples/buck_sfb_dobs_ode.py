@@ -55,14 +55,17 @@ p2_o = np.conj(p1_o)
 p3_o = 10 * p1_o.real
 
 # Sim
-obs_params = {'poles': [p1_o, p2_o]}
-sfb_params = {'poles': [p1, p2], 'obs': pydobs.LuenbergerC, 'obs_params': obs_params}
+#obs_params = {'poles': [p1_o, p2_o]}
+#sfb_params = {'poles': [p1, p2], 'obs': pydobs.LuenbergerC, 'obs_params': obs_params}
 
 #obs_params = {'poles': [p1_o, p2_o, p3_o]}
 #sfb_params = {'poles': [p1, p2, p3], 'obs': pydobs.DisturbanceObs,'obs_params': obs_params}
 
+obs_params = {'b1': 3e5, 'b2': 1e12, 'b3': 1e8}
+sfb_params = {'poles': [p1, p2, p3], 'obs': pydobs.ESO,'obs_params': obs_params}
+
 buck.set_ctlparams(sfb_params)
-buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pydctl.SFB)
+buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pydctl.SFB_I)
 
 t_sfb = buck.signals.t
 x_sfb = buck.signals.x

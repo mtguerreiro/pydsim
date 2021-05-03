@@ -337,12 +337,12 @@ class ESO:
                        [-b2, 0, 1],
                        [-b3, 0, 0]])
 
-        Bo = np.array([[b1], [b2], [b3]])
+        Bo = np.array([b1, b2, b3])
 
         self.Ao, self.Bo = Ao, Bo
 
         # Discrete-time observer
-        Aod, Bod, Cod, _, _ = scipy.signal.cont2discrete((Ao, Bo, np.zeros(2), 0), dt, method='bilinear')
+        Aod, Bod, Cod, _, _ = scipy.signal.cont2discrete((Ao, Bo, np.zeros(3), 0), dt, method='bilinear')
         self.Aod, self.Bod = Aod, Bod
 
     
@@ -366,7 +366,7 @@ class ESO:
 
     def estimate(self, y, u):
         
-        self.x_tilde_k_1 = self.Aod @ self.x_bar_k + self.Bod * y
+        self.x_tilde_k_1 = self.Aod @ self.x_tilde_k + self.Bod * y
         
         self.x_tilde_k = self.x_tilde_k_1
 
