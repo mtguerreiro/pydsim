@@ -60,7 +60,7 @@ def set_controller_buck(buck, controller, params):
             obs_params['dt'] = t_pwm
         else:
             obs = None
-            poles_o = None
+            obs_params = None
         ctl._set_params(A, B, C, poles, v_in, t_pwm, obs, obs_params)
     
 
