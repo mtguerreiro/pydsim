@@ -12,10 +12,10 @@ C = 560e-6
 # Input and reference voltage
 v_in = 10
 v_in_step = -3
-v_ref = 3.5
+v_ref = 3
 
 # Sim time
-t_sim = 2e-3
+t_sim = 0.75e-3
 
 # PWM frequency
 f_pwm = 200e3
@@ -48,14 +48,15 @@ v_ref_p = v_ref * np.ones(n)
 ##x_pi = buck.signals.x
 ##u_pi = buck.signals.d
 
-dmpc_params = {'n_c': 20, 'n_p': 20, 'r_w': 150}
+r_w = 100
+dmpc_params = {'n_c': 20, 'n_p': 20, 'r_w': r_w}
 buck.set_ctlparams(dmpc_params)
 buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.DMPC)
 t_dmpc = buck.signals.t
 x_dmpc = buck.signals.x
 u_dmpc = buck.signals.d
 
-dmpc_params = {'n_c': 20, 'n_p': 20, 'r_w': 150, 'u_lim': [0, 1]}
+dmpc_params = {'n_c': 20, 'n_p': 20, 'r_w': r_w, 'u_lim': [0, 1]}
 buck.set_ctlparams(dmpc_params)
 buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.DMPC_C)
 t_dmpc_c = buck.signals.t

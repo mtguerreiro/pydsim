@@ -25,6 +25,9 @@ def hild(H, K, M, y, n_iter=100):
         if np.allclose(lm_p, lm) == True:
             break
 
-    #print(k)
-
+    print('\n-----')
+    print(lm)
+    print(k)
+    print('-----\n')
+    
     return lm

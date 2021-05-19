@@ -515,6 +515,9 @@ class DMPC_C:
 
         self.F = None
         self.Phi = None
+        self.F_x = None
+        self.Phi_x = None
+        
         self.R_bar = None
         self.Rs_bar = None
 
@@ -557,15 +560,30 @@ class DMPC_C:
         F, Phi = pyddmpc.matrices(Aa, Ba, Ca, n_p, n_c)
         self.F, self.Phi = F, Phi
 
+        Cx = np.zeros(Ca.shape)
+        Cx[0, 0] = 1
+        F_x, Phi_x = pyddmpc.matrices(Aa, Ba, Cx, n_p, n_c)
+        self.F_x, self.Phi_x = F_x, Phi_x
+
         Rs_bar = np.ones((n_p, 1))
         self.Rs_bar = Rs_bar
         
         R_bar = r_w * np.eye(n_c)
         self.R_bar = R_bar
 
-        M = np.zeros((2, n_c))
+        M = np.zeros((8, n_c))
         M[0, 0] = -1
         M[1, 0] = 1
+        M[0, 1] = -1
+        M[1, 1] = 1
+        M[2, 1] = -1
+        M[3, 1] = 1
+        M[4, :] = -Phi_x[0, :]
+        M[5, :] = Phi_x[0, :]
+        M[6, :] = -Phi_x[1, :]
+        M[7, :] = Phi_x[1, :]
+##        M[6, :] = -Phi_x[2, :]
+##        M[7, :] = Phi_x[2, :]
         self.M = M
 
         E_j = Phi.T @ Phi + R_bar
@@ -575,7 +593,7 @@ class DMPC_C:
         H_j = M @ E_j_inv @ M.T
         self.H_j = H_j
 
-        y = np.zeros((2, 1))
+        y = np.zeros((8, 1))
         self.y = y
 
         self.u_lim = u_lim
@@ -608,16 +626,28 @@ class DMPC_C:
         xa = np.array([dx[0], dx[1], x[1]]).reshape(-1,1)
         #print(xa)
         
-
-        y[0, 0] = -u_lim[0] + self.u_1
-        y[1, 0] = u_lim[1] - self.u_1
-
         #print(x)
         F_j = -Phi.T @ (Rs_bar * ref - F @ xa)
 
+        il_min = -15 + x[0]
+        il_max = 15 - x[0]
+        
+        self.xa=xa
+        y[0, 0] = -u_lim[0] + self.u_1
+        y[1, 0] = u_lim[1] - self.u_1
+        y[2, 0] = -u_lim[0] + self.u_1
+        y[3, 0] = u_lim[1] - self.u_1
+        y[4, 0] = -il_min + self.F_x[0, :] @ xa
+        y[5, 0] = il_max - self.F_x[0, :] @ xa
+        y[6, 0] = -il_min + self.F_x[0, :] @ xa
+        y[7, 0] = il_max - self.F_x[0, :] @ xa
+##        y[6, 0] = -10 + x[0]
+##        y[7, 0] = 10 - x[0]
+        
         K_j = y + M @ E_j_inv @ F_j
 
-        lm = pydqp.hild(H_j, K_j, M, y, n_iter=10).reshape(-1, 1)
+
+        lm = pydqp.hild(H_j, K_j, M, y, n_iter=100).reshape(-1, 1)
         #print('lambda:', lm)
         du_opt = -E_j_inv @ (F_j + M.T @ lm)
         #print(du_opt)
