@@ -5,6 +5,8 @@ import pyoctl.opt as octl
 import pydsim.utils as pydutils
 import pydsim.control as pydctl
 import pydsim.observer as pydobs
+import pydsim.dmpc as pyddmpc
+import pydsim.qp as pydqp
 
 
 def set_controller_buck(buck, controller, params):
@@ -47,6 +49,21 @@ def set_controller_buck(buck, controller, params):
         else:
             ref = None
         ctl._set_params(A, B, C, t_pwm, v_in, n_p, n_c, r_w, ref)
+
+    elif type(ctl) is pydctl.DMPC_C:
+        t_pwm = buck.circuit.t_pwm
+        A, B, C = buck.model.A, buck.model.B, buck.model.C
+        v_in = buck.signals.v_in[0]
+        n_c, n_p, r_w = params['n_c'], params['n_p'], params['r_w']
+        if 'u_lim' in params:
+            u_lim = params['u_lim']
+        else:
+            u_lim = [0, 1]
+        if 'ref' in params:
+            ref = params['ref']
+        else:
+            ref = None
+        ctl._set_params(A, B, C, t_pwm, v_in, n_p, n_c, r_w, ref, u_lim=u_lim)
 
     elif type(ctl) is pydctl.SFB or type(ctl) is pydctl.SFB_I:
         t_pwm = buck.circuit.t_pwm
@@ -455,8 +472,8 @@ class DMPC:
             dx = (x - self.x_1)
             du = -self.K_y * (x[1] - ref) + -self.K_x @ dx
             u_dmpc = du + self.u_1
-            if u_dmpc > 1: u_dmpc = 1
-            elif u_dmpc < 0: u_dmpc = 0
+            #if u_dmpc > 1: u_dmpc = 1
+            #elif u_dmpc < 0: u_dmpc = 0
         else:
             i_i = self.__i
             i_f = self.__i + self.n_p
@@ -473,6 +490,144 @@ class DMPC:
 
         return u_dmpc
 
+
+class DMPC_C:
+
+    def __init__(self):
+
+        # Controller parameters
+        self.dt = None
+        self.v_in = None
+
+        # Model - continuous and discrete
+        self.Am = None
+        self.Bm = None
+        self.Cm = None
+
+        self.Ad = None
+        self.Bd = None
+        self.Cd = None
+
+        # MPC params and gains
+        self.Aa = None
+        self.Ba = None
+        self.Ca = None
+
+        self.F = None
+        self.Phi = None
+        self.R_bar = None
+        self.Rs_bar = None
+
+        self.M = None
+        self.E_j = None
+        self.E_j_inv = None
+        self.H_j = None
+        
+        self.n_p = None
+        self.n_c = None
+        self.r_w = None
+
+        self.u_lim = None
+
+        # Reference and index for changing reference
+        self.ref = None
+        self.__i = 0
+
+        # Controller states
+        self.u_1 = None
+        self.x_1 = None
+
+
+    def _set_params(self, A, B, C, dt, v_in, n_p, n_c, r_w, ref=None, u_lim=[0, 1]):
+        
+        self.v_in = v_in
+        self.Am, self.Bm, self.Cm = A, B * v_in, C
+
+        # Discrete model
+        self.dt = dt
+        Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((A, B * v_in, C, 0), dt, method='bilinear')
+        self.Ad, self.Bd, self.Cd = Ad, Bd, Cd
+        
+        # Augmented model for DMPC
+        Aa, Ba, Ca = pyddmpc.aug(Ad, Bd, Cd)
+        self.Aa, self.Ba, self.Ca = Aa, Ba, Ca
+
+        # DMPC matrices        
+        self.n_p, self.n_c, self.r_w = n_p, n_c, r_w
+        F, Phi = pyddmpc.matrices(Aa, Ba, Ca, n_p, n_c)
+        self.F, self.Phi = F, Phi
+
+        Rs_bar = np.ones((n_p, 1))
+        self.Rs_bar = Rs_bar
+        
+        R_bar = r_w * np.eye(n_c)
+        self.R_bar = R_bar
+
+        M = np.zeros((2, n_c))
+        M[0, 0] = -1
+        M[1, 0] = 1
+        self.M = M
+
+        E_j = Phi.T @ Phi + R_bar
+        E_j_inv = np.linalg.inv(E_j)
+        self.E_j, self.E_j_inv = E_j, E_j_inv
+
+        H_j = M @ E_j_inv @ M.T
+        self.H_j = H_j
+
+        y = np.zeros((2, 1))
+        self.y = y
+
+        self.u_lim = u_lim
+        
+        # Initial conditions
+        self.x_1 = np.array([0.0, 0.0])
+        self.u_1 = 0.0
+
+        
+    def meas(self, signals, i, j):
+
+        x = signals._x[i]
+        ref = signals.v_ref[j]
+
+        sigs = [x, ref]
+
+        return sigs
+
+    
+    def control(self, sigs):
+
+        Phi, F, Rs_bar = self.Phi, self.F, self.Rs_bar
+        E_j, E_j_inv, H_j, M, y = self.E_j, self.E_j_inv, self.H_j, self.M, self.y
+        u_lim = self.u_lim
+        
+        x = sigs[0]#.reshape(-1, 1)
+        ref = sigs[1]
+
+        dx = x - self.x_1
+        xa = np.array([dx[0], dx[1], x[1]]).reshape(-1,1)
+        #print(xa)
+        
+
+        y[0, 0] = -u_lim[0] + self.u_1
+        y[1, 0] = u_lim[1] - self.u_1
+
+        #print(x)
+        F_j = -Phi.T @ (Rs_bar * ref - F @ xa)
+
+        K_j = y + M @ E_j_inv @ F_j
+
+        lm = pydqp.hild(H_j, K_j, M, y, n_iter=10).reshape(-1, 1)
+        #print('lambda:', lm)
+        du_opt = -E_j_inv @ (F_j + M.T @ lm)
+        #print(du_opt)
+
+        u_dmpc = self.u_1 + du_opt[0]
+        self.x_1 = x
+        self.u_1 = u_dmpc
+
+        return u_dmpc
+    
 
 class SFB:
     
