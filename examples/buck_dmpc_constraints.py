@@ -5,17 +5,17 @@ plt.ion()
 
 # --- Input ---
 # Circuit components
-R = 5
-L = 10e-6
+R = 2.2
+L = 47e-6
 C = 560e-6
 
 # Input and reference voltage
 v_in = 10
-v_in_step = -3
+v_in_step = 3
 v_ref = 5
 
 # Sim time
-t_sim = 0.75e-3
+t_sim = 1.25e-3
 
 # PWM frequency
 f_pwm = 200e3
@@ -34,7 +34,7 @@ v_in_p = v_in * np.ones(n)
 #v_in_p[int(n / 2):] = v_in + v_in_step
 
 v_ref_p = v_ref * np.ones(n)
-#v_ref_p[int(n / 2):] = v_ref  + v_in_step
+##v_ref_p[int(n / 2):] = v_ref  + v_in_step
 ##t_i = int(4e-3 / t_pwm)
 ##t_f = int(4.5e-3 / t_pwm)
 ##v_ref_p[t_i:t_f] = np.arange(v_ref, v_ref + v_in_step, v_in_step / (t_f - t_i))
@@ -48,14 +48,17 @@ v_ref_p = v_ref * np.ones(n)
 ##x_pi = buck.signals.x
 ##u_pi = buck.signals.d
 
-dmpc_params = {'n_c': 20, 'n_p': 20, 'r_w': 120}
+#dmpc_params = {'n_c': 30, 'n_p': 30, 'r_w': 100}
+#buck.set_ctlparams(dmpc_params)
+#buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.DMPC)
+dmpc_params = {'n_c': 50, 'n_p': 50, 'r_w': 5, 'u_lim': [0, 1], 'il_lim': [-15, 15], 'n_ct':1}
 buck.set_ctlparams(dmpc_params)
-buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.DMPC)
+buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.DMPC_C)
 t_dmpc = buck.signals.t
 x_dmpc = buck.signals.x
 u_dmpc = buck.signals.d
 
-dmpc_params = {'n_c': 20, 'n_p': 20, 'r_w': 120, 'u_lim': [0, 1], 'i_lim': [-20, 20], 'n_ct':2}
+dmpc_params = {'n_c': 50, 'n_p': 50, 'r_w': 40, 'u_lim': [0, 1], 'il_lim': [-15, 15], 'n_ct':3}
 buck.set_ctlparams(dmpc_params)
 buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.DMPC_C)
 t_dmpc_c = buck.signals.t

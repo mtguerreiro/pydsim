@@ -59,6 +59,11 @@ def set_controller_buck(buck, controller, params):
             u_lim = params['u_lim']
         else:
             u_lim = [0, 1]
+
+        if 'il_lim' in params:
+            il_lim = params['il_lim']
+        else:
+            il_lim = [-100, 100]
             
         if 'n_ct' in params:
             n_ct = params['n_ct']
@@ -71,7 +76,7 @@ def set_controller_buck(buck, controller, params):
             ref = None
             
         ctl._set_params(A, B, C, t_pwm, v_in, n_p, n_c, r_w, ref)
-        ctl._set_constraints(u_lim, n_ct)
+        ctl._set_constraints(u_lim, il_lim, n_ct)
 
     elif type(ctl) is pydctl.SFB or type(ctl) is pydctl.SFB_I:
         t_pwm = buck.circuit.t_pwm
@@ -480,8 +485,8 @@ class DMPC:
             dx = (x - self.x_1)
             du = -self.K_y * (x[1] - ref) + -self.K_x @ dx
             u_dmpc = du + self.u_1
-            #if u_dmpc > 1: u_dmpc = 1
-            #elif u_dmpc < 0: u_dmpc = 0
+            if u_dmpc > 1: u_dmpc = 1
+            elif u_dmpc < 0: u_dmpc = 0
         else:
             i_i = self.__i
             i_f = self.__i + self.n_p
@@ -588,16 +593,24 @@ class DMPC_C:
         self.u_1 = 0.0
 
 
-    def _set_constraints(self, u_lim, n):
+    def _set_constraints(self, u_lim, il_lim, n):
 
         n_c = self.n_c
-        E_j_inv = self.E_j_inv
+        E_j_inv, Phi_x = self.E_j_inv, self.Phi_x
         
         C2 = np.tril(np.ones((n, n_c)))
         
-        M = np.zeros((2*n, n_c))
-        M[:n, :] = -C2
-        M[n:, :] = C2
+        M = np.zeros((4*n, n_c))
+        n_1 = n
+        n_2 = int(2 * n)
+        n_3 = int(3 * n)
+        
+        M[:n_1, :] = -C2
+        M[n_1:n_2, :] = C2
+
+        M[n_2:n_3, :] = -Phi_x[:n, :]
+        M[n_3:, :] = Phi_x[:n, :]
+        
         self.M = M
         print(M)
 
@@ -608,6 +621,7 @@ class DMPC_C:
         self.y = y
 
         self.u_lim = u_lim
+        self.il_lim = il_lim
         
         
     def meas(self, signals, i, j):
@@ -624,7 +638,7 @@ class DMPC_C:
 
         Phi, F, Rs_bar = self.Phi, self.F, self.Rs_bar
         E_j, E_j_inv, H_j, M, y = self.E_j, self.E_j_inv, self.H_j, self.M, self.y
-        u_lim = self.u_lim
+        u_lim, il_lim = self.u_lim, self.il_lim
         
         x = sigs[0]
         ref = sigs[1]
@@ -634,29 +648,26 @@ class DMPC_C:
 
         F_j = -Phi.T @ (Rs_bar * ref - F @ xa)
 
-        il_min = -15 + x[0]
-        il_max = 15 - x[0]
+        il_min = il_lim[0] - x[0]
+        il_max = il_lim[1] - x[0]
         
         self.xa=xa
-        n = round(M.shape[0] / 2)
+        n = round(M.shape[0] / 4)
+        n_1 = n
+        n_2 = int(2 * n)
+        n_3 = int(3 * n)
         
-        y[:n, 0] = -u_lim[0] + self.u_1
-        y[n:, 0] = u_lim[1] - self.u_1
-##        y[2, 0] = -u_lim[0] + self.u_1
-##        y[3, 0] = u_lim[1] - self.u_1
-##        y[4, 0] = -il_min + self.F_x[0, :] @ xa
-##        y[5, 0] = il_max - self.F_x[0, :] @ xa
-##        y[6, 0] = -il_min + self.F_x[0, :] @ xa
-##        y[7, 0] = il_max - self.F_x[0, :] @ xa
-##        y[6, 0] = -10 + x[0]
-##        y[7, 0] = 10 - x[0]
+        y[:n_1, 0] = -u_lim[0] + self.u_1
+        y[n_1:n_2, 0] = u_lim[1] - self.u_1
+        y[n_2:n_3, 0] = -il_min + self.F_x[0, :] @ xa
+        y[n_3:, 0] = il_max - self.F_x[0, :] @ xa
         
         K_j = y + M @ E_j_inv @ F_j
 
         lm = pydqp.hild(H_j, K_j, M, y, n_iter=100).reshape(-1, 1)
         du_opt = -E_j_inv @ (F_j + M.T @ lm)
 
-        u_dmpc = self.u_1 + du_opt[0]
+        u_dmpc = self.u_1 + du_opt[0, 0]
         self.x_1 = x
         self.u_1 = u_dmpc
 
