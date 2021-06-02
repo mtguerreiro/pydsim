@@ -646,6 +646,10 @@ class DMPC_C:
         dx = x - self.x_1
         xa = np.array([dx[0], dx[1], x[1]]).reshape(-1,1)
 
+##        print('x:\n', x)
+##        print('ref:\n', ref)
+##        print('xa:\n', xa)
+##        print('ua_1:\n', self.u_1)
         F_j = -Phi.T @ (Rs_bar * ref - F @ xa)
 
         il_min = il_lim[0] - x[0]
@@ -664,8 +668,24 @@ class DMPC_C:
         
         K_j = y + M @ E_j_inv @ F_j
 
-        lm = pydqp.hild(H_j, K_j, M, y, n_iter=100).reshape(-1, 1)
+
+
+        lm = pydqp.hild(H_j, K_j, n_iter=100).reshape(-1, 1)
         du_opt = -E_j_inv @ (F_j + M.T @ lm)
+
+        print('\n-------------')
+        print('E_j:\n', E_j)
+        print('\nF_j:\n', F_j)
+        print('\nM:\n', M)
+        print('\ny:\n', y)
+        print('\nlambda:\n', lm)
+        print('\ndu_opt:\n', du_opt)
+        print('-------------\n')
+
+##        print('\n-------------')
+##        print('lambda:\n', lm)
+##        print('du_opt:\n', du_opt)
+##        print('-------------\n')
 
         u_dmpc = self.u_1 + du_opt[0, 0]
         self.x_1 = x
