@@ -525,6 +525,7 @@ class DMPC_C:
         self.Aa = None
         self.Ba = None
         self.Ca = None
+        self.CI = None
 
         self.F = None
         self.Phi = None
@@ -595,10 +596,13 @@ class DMPC_C:
 
     def _set_constraints(self, u_lim, il_lim, n):
 
-        n_c = self.n_c
+        n_p, n_c = self.n_p, self.n_c
         E_j_inv, Phi_x = self.E_j_inv, self.Phi_x
         
         C2 = np.tril(np.ones((n, n_c)))
+        CI = np.tril(np.ones((n, n_p)))
+        self.CI = CI
+        
         
         M = np.zeros((4*n, n_c))
         n_1 = n
@@ -608,11 +612,10 @@ class DMPC_C:
         M[:n_1, :] = -C2
         M[n_1:n_2, :] = C2
 
-        M[n_2:n_3, :] = -Phi_x[:n, :]
-        M[n_3:, :] = Phi_x[:n, :]
+        M[n_2:n_3, :] = -CI @ Phi_x
+        M[n_3:, :] = CI @ Phi_x
         
         self.M = M
-        print(M)
 
         H_j = M @ E_j_inv @ M.T
         self.H_j = H_j
@@ -639,6 +642,7 @@ class DMPC_C:
         Phi, F, Rs_bar = self.Phi, self.F, self.Rs_bar
         E_j, E_j_inv, H_j, M, y = self.E_j, self.E_j_inv, self.H_j, self.M, self.y
         u_lim, il_lim = self.u_lim, self.il_lim
+        F_x, CI = self.F_x, self.CI
         
         x = sigs[0]
         ref = sigs[1]
@@ -646,10 +650,10 @@ class DMPC_C:
         dx = x - self.x_1
         xa = np.array([dx[0], dx[1], x[1]]).reshape(-1,1)
 
-##        print('x:\n', x)
-##        print('ref:\n', ref)
-##        print('xa:\n', xa)
-##        print('ua_1:\n', self.u_1)
+        # print('x:\n', x)
+        # print('ref:\n', ref)
+        # print('xa:\n', xa)
+        # print('ua_1:\n', self.u_1)
         F_j = -Phi.T @ (Rs_bar * ref - F @ xa)
 
         il_min = il_lim[0] - x[0]
@@ -663,30 +667,23 @@ class DMPC_C:
         
         y[:n_1, 0] = -u_lim[0] + self.u_1
         y[n_1:n_2, 0] = u_lim[1] - self.u_1
-        y[n_2:n_3, 0] = -il_min + self.F_x[0, :] @ xa
-        y[n_3:, 0] = il_max - self.F_x[0, :] @ xa
+        y[n_2:n_3, :] = -il_min + CI @ F_x @ xa
+        y[n_3:, :] = il_max - CI @ F_x @ xa
         
         K_j = y + M @ E_j_inv @ F_j
-
-
 
         lm = pydqp.hild(H_j, K_j, n_iter=100).reshape(-1, 1)
         du_opt = -E_j_inv @ (F_j + M.T @ lm)
 
-        print('\n-------------')
-        print('E_j:\n', E_j)
-        print('\nF_j:\n', F_j)
-        print('\nM:\n', M)
-        print('\ny:\n', y)
-        print('\nlambda:\n', lm)
-        print('\ndu_opt:\n', du_opt)
-        print('-------------\n')
-
-##        print('\n-------------')
-##        print('lambda:\n', lm)
-##        print('du_opt:\n', du_opt)
-##        print('-------------\n')
-
+        # print('\n-------------')
+        # print('E_j:\n', E_j)
+        # print('\nF_j:\n', F_j)
+        # print('\nM:\n', M)
+        # print('\ny:\n', y)
+        # print('\nlambda:\n', lm)
+        # print('\ndu_opt:\n', du_opt)
+        # print('-------------\n')
+        
         u_dmpc = self.u_1 + du_opt[0, 0]
         self.x_1 = x
         self.u_1 = u_dmpc
