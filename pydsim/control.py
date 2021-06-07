@@ -543,6 +543,7 @@ class DMPC_C:
         self.n_p = None
         self.n_c = None
         self.r_w = None
+        self.n_r = None
 
         self.u_lim = None
 
@@ -595,6 +596,8 @@ class DMPC_C:
 
 
     def _set_constraints(self, u_lim, il_lim, n):
+
+        self.n_r = n
 
         n_p, n_c = self.n_p, self.n_c
         E_j_inv, Phi_x = self.E_j_inv, self.Phi_x
@@ -675,6 +678,16 @@ class DMPC_C:
         lm = pydqp.hild(H_j, K_j, n_iter=100).reshape(-1, 1)
         du_opt = -E_j_inv @ (F_j + M.T @ lm)
 
+##        print('\n-------------')
+##        print('x:\n', x)
+##        print('ref:\n', ref)
+##        print('x_1:\n', self.x_1)
+##        print('ua_1:\n', self.u_1)
+##        print('\nlambda:\n', lm)
+##        print('\ndu_opt:\n', du_opt)
+##        print('-------------\n')
+
+        
         # print('\n-------------')
         # print('E_j:\n', E_j)
         # print('\nF_j:\n', F_j)
