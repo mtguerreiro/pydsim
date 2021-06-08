@@ -675,7 +675,8 @@ class DMPC_C:
         
         K_j = y + M @ E_j_inv @ F_j
 
-        lm = pydqp.hild(H_j, K_j, n_iter=100).reshape(-1, 1)
+        lm, n_iter = pydqp.hild(H_j, K_j, n_iter=100, ret_n_iter=True)
+        lm = lm.reshape(-1, 1)
         du_opt = -E_j_inv @ (F_j + M.T @ lm)
 
         # print('\n-------------')
@@ -684,6 +685,7 @@ class DMPC_C:
         # print('x_1:\n', self.x_1)
         # print('ua_1:\n', self.u_1)
         # print('\nlambda:\n', lm)
+        # print('\nn_iter:\n', n_iter)
         # print('\ndu_opt:\n', du_opt)
         # print('-------------\n')
 

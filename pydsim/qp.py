@@ -1,6 +1,6 @@
 import numpy as np
 
-def hild(H, K, n_iter=100):
+def hild(H, K, n_iter=100, ret_n_iter=False):
 
     h_d = -1 / H.diagonal()
     h = H[~np.eye(H.shape[0],dtype=bool)].reshape(H.shape[0],-1)
@@ -22,5 +22,10 @@ def hild(H, K, n_iter=100):
             break
 
     # print(k)
+
+    if ret_n_iter is True:
+        ret = (lm, k)
+    else:
+        ret = lm
     
-    return lm
+    return ret
