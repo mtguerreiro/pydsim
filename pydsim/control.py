@@ -678,14 +678,14 @@ class DMPC_C:
         lm = pydqp.hild(H_j, K_j, n_iter=100).reshape(-1, 1)
         du_opt = -E_j_inv @ (F_j + M.T @ lm)
 
-##        print('\n-------------')
-##        print('x:\n', x)
-##        print('ref:\n', ref)
-##        print('x_1:\n', self.x_1)
-##        print('ua_1:\n', self.u_1)
-##        print('\nlambda:\n', lm)
-##        print('\ndu_opt:\n', du_opt)
-##        print('-------------\n')
+        # print('\n-------------')
+        # print('x:\n', x)
+        # print('ref:\n', ref)
+        # print('x_1:\n', self.x_1)
+        # print('ua_1:\n', self.u_1)
+        # print('\nlambda:\n', lm)
+        # print('\ndu_opt:\n', du_opt)
+        # print('-------------\n')
 
         
         # print('\n-------------')
