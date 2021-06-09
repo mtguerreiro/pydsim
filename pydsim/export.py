@@ -1,9 +1,11 @@
 import numpy as np
+import sys
 
 
 def buck_dmpc_export(buck):
 
     #np.set_printoptions(floatmode='unique')
+    np.set_printoptions(threshold=sys.maxsize)
     
     n_p, n_c, n_r = buck.ctl.n_p, buck.ctl.n_c, buck.ctl.n_r
     u_lim, il_lim = buck.ctl.u_lim, buck.ctl.il_lim
@@ -74,7 +76,8 @@ def buck_dmpc_export(buck):
 
     
     print(text)
-    
+
+    np.set_printoptions(threshold=1000)
     #np.set_printoptions(floatmode='maxprec_equal')
     
 def np_array_to_c(arr, arr_name):
