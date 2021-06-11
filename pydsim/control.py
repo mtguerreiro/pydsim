@@ -546,6 +546,10 @@ class DMPC_C:
         self.n_r = None
 
         self.u_lim = None
+        self.il_lim = None
+
+        self.n_iters = None
+        
 
         # Reference and index for changing reference
         self.ref = None
@@ -554,6 +558,7 @@ class DMPC_C:
         # Controller states
         self.u_1 = None
         self.x_1 = None
+        
 
 
     def _set_params(self, A, B, C, dt, v_in, n_p, n_c, r_w, ref=None):
@@ -628,6 +633,7 @@ class DMPC_C:
 
         self.u_lim = u_lim
         self.il_lim = il_lim
+        self.n_iters = []
         
         
     def meas(self, signals, i, j):
@@ -675,7 +681,8 @@ class DMPC_C:
         
         K_j = y + M @ E_j_inv @ F_j
 
-        lm, n_iter = pydqp.hild(H_j, K_j, n_iter=100, ret_n_iter=True)
+        lm, n_iter = pydqp.hild(H_j, K_j, n_iter=500, ret_n_iter=True)
+        self.n_iters.append(n_iter)
         lm = lm.reshape(-1, 1)
         du_opt = -E_j_inv @ (F_j + M.T @ lm)
 
