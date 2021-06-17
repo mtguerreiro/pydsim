@@ -15,7 +15,7 @@ v_in_step = 3
 v_ref = 5
 
 # Sim time
-t_sim = 0.8e-3
+t_sim = 1.5e-3
 
 # PWM frequency
 f_pwm = 200e3
@@ -60,7 +60,7 @@ v_ref_p = v_ref * np.ones(n)
 ##u_dmpc = buck.signals.d
 
 #dmpc_params = {'n_c': 15, 'n_p': 25, 'r_w': 0.05, 'u_lim': [0, 1], 'il_lim': [-15, 15], 'n_ct':15}
-dmpc_params = {'n_c': 15, 'n_p': 25, 'r_w': 0.05, 'u_lim': [0, 1], 'il_lim': [-15, 15], 'n_ct':6, 'solver':'quadprog'}
+dmpc_params = {'n_c': 15, 'n_p': 25, 'r_w': 0.05, 'u_lim': [0, 1], 'il_lim': [-15, 15], 'n_ct':1, 'solver':'quadprog'}
 buck.set_ctlparams(dmpc_params)
 buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.DMPC_C)
 t_dmpc = buck.signals.t
@@ -69,7 +69,7 @@ u_dmpc = buck.signals.d
 #n_iters = buck.ctl.n_iters
 
 #dmpc_params = {'n_c': 15, 'n_p': 25, 'r_w': 0.05, 'u_lim': [0, 1], 'il_lim': [-15, 15], 'n_ct':15}
-dmpc_params = {'n_c': 15, 'n_p': 25, 'r_w': 0.05, 'u_lim': [0, 1], 'il_lim': [-15, 15], 'n_ct':6, 'n_iter':200, 'solver':'hild'}
+dmpc_params = {'n_c': 15, 'n_p': 25, 'r_w': 0.05, 'u_lim': [0, 1], 'il_lim': [-15, 15], 'n_ct':1, 'n_iter':200, 'solver':'hild'}
 buck.set_ctlparams(dmpc_params)
 buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.DMPC_C)
 t_dmpc_c = buck.signals.t
