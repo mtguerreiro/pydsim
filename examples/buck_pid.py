@@ -5,8 +5,8 @@ plt.ion()
 
 # --- Input ---
 # Circuit components
-R = 5
-L = 10e-6
+R = 2.2
+L = 47e-6
 C = 560e-6
 
 # Input and reference voltage
@@ -15,7 +15,7 @@ v_in_step = -2
 v_ref = 5
 
 # Sim time
-t_sim = 3e-3
+t_sim = 1.5e-3
 
 # PWM frequency
 f_pwm = 200e3
@@ -30,7 +30,7 @@ buck.set_sim_params(dt, t_sim)
 
 n = round(t_sim * f_pwm)
 v_in_p = v_in * np.ones(n)
-v_in_p[n>>1:] = v_in + v_in_step
+#v_in_p[n>>1:] = v_in + v_in_step
 
 ##v_ref_p = v_ref * np.ones(buck.n_cycles)
 ##v_ref_p[int(buck.n_cycles / 2):] = v_ref + v_in_step

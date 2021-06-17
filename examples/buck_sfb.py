@@ -5,8 +5,8 @@ plt.ion()
 
 # --- Input ---
 # Circuit components
-R = 5
-L = 10e-6
+R = 2.2
+L = 47e-6
 C = 560e-6
 
 # Input and reference voltage
@@ -24,8 +24,8 @@ f_pwm = 200e3
 dt = 1 / f_pwm / 500
 
 # Specs for state feedback
-Ts = 0.5e-3
-os = 5/100
+Ts = 0.75e-3
+os = 7/100
 
 # --- Simulation ---
 buck = pyd.pe.Buck(R, L, C)
