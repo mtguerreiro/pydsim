@@ -7,6 +7,7 @@ import pydsim.control as pydctl
 import pydsim.observer as pydobs
 import pydsim.dmpc as pyddmpc
 import pydsim.qp as pydqp
+import qpsolvers as qps
 
 
 def set_controller_buck(buck, controller, params):
@@ -69,13 +70,18 @@ def set_controller_buck(buck, controller, params):
             n_ct = params['n_ct']
         else:
             n_ct = 1
-        
-        if 'ref' in params:
-            ref = params['ref']
+
+        if 'solver' in params:
+            solver = params['solver']
         else:
-            ref = None
+            solver = 'hild'
+        
+        if 'n_iter' in params:
+            n_iter = params['n_iter']
+        else:
+            n_iter = 100
             
-        ctl._set_params(A, B, C, t_pwm, v_in, n_p, n_c, r_w, ref)
+        ctl._set_params(A, B, C, t_pwm, v_in, n_p, n_c, r_w, solver=solver, n_iter=n_iter)
         ctl._set_constraints(u_lim, il_lim, n_ct)
 
     elif type(ctl) is pydctl.SFB or type(ctl) is pydctl.SFB_I:
@@ -549,6 +555,10 @@ class DMPC_C:
         self.il_lim = None
 
         self.n_iters = None
+
+        # QP settings
+        self.solver = None
+        self.n_iter = None
         
 
         # Reference and index for changing reference
@@ -558,10 +568,9 @@ class DMPC_C:
         # Controller states
         self.u_1 = None
         self.x_1 = None
-        
 
 
-    def _set_params(self, A, B, C, dt, v_in, n_p, n_c, r_w, ref=None):
+    def _set_params(self, A, B, C, dt, v_in, n_p, n_c, r_w, solver='hild', n_iter=100, ref=None):
         
         self.v_in = v_in
         self.Am, self.Bm, self.Cm = A, B * v_in, C
@@ -594,6 +603,10 @@ class DMPC_C:
         E_j = Phi.T @ Phi + R_bar
         E_j_inv = np.linalg.inv(E_j)
         self.E_j, self.E_j_inv = E_j, E_j_inv
+
+        # QP settings
+        self.solver = solver
+        self.n_iter = n_iter
         
         # Initial conditions
         self.x_1 = np.array([0.0, 0.0])
@@ -652,6 +665,7 @@ class DMPC_C:
         E_j, E_j_inv, H_j, M, y = self.E_j, self.E_j_inv, self.H_j, self.M, self.y
         u_lim, il_lim = self.u_lim, self.il_lim
         F_x, CI = self.F_x, self.CI
+        n_iter = self.n_iter
         
         x = sigs[0]
         ref = sigs[1]
@@ -678,13 +692,19 @@ class DMPC_C:
         y[n_1:n_2, 0] = u_lim[1] - self.u_1
         y[n_2:n_3, :] = -il_min + CI @ F_x @ xa
         y[n_3:, :] = il_max - CI @ F_x @ xa
-        
-        K_j = y + M @ E_j_inv @ F_j
 
-        lm, n_iter = pydqp.hild(H_j, K_j, n_iter=500, ret_n_iter=True)
-        self.n_iters.append(n_iter)
-        lm = lm.reshape(-1, 1)
-        du_opt = -E_j_inv @ (F_j + M.T @ lm)
+        if self.solver == 'quadprog':
+            du_opt = qps.solve_qp(E_j, F_j.reshape(-1), M, y.reshape(-1))
+            if du_opt is None:
+                du_opt=[0]            
+        else:
+            K_j = y + M @ E_j_inv @ F_j
+            
+            lm, n_iters = pydqp.hild(H_j, K_j, n_iter=n_iter, ret_n_iter=True)
+            self.n_iters.append(n_iters)
+            lm = lm.reshape(-1, 1)
+            du_opt = -E_j_inv @ (F_j + M.T @ lm)
+            du_opt = du_opt.reshape(-1)
 
         # print('\n-------------')
         # print('x:\n', x)
@@ -695,7 +715,6 @@ class DMPC_C:
         # print('\nn_iter:\n', n_iter)
         # print('\ndu_opt:\n', du_opt)
         # print('-------------\n')
-
         
         # print('\n-------------')
         # print('E_j:\n', E_j)
@@ -705,8 +724,8 @@ class DMPC_C:
         # print('\nlambda:\n', lm)
         # print('\ndu_opt:\n', du_opt)
         # print('-------------\n')
-        
-        u_dmpc = self.u_1 + du_opt[0, 0]
+
+        u_dmpc = self.u_1 + du_opt[0]
         self.x_1 = x
         self.u_1 = u_dmpc
 
