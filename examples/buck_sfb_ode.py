@@ -35,7 +35,7 @@ buck.set_sim_params(dt, t_sim, max_step=max_step)
 
 n = round(t_sim * f_pwm)
 v_in_p = v_in * np.ones(n)
-v_in_p[n>>1:] = v_in + v_in_step
+#v_in_p[n>>1:] = v_in + v_in_step
 
 zeta = -np.log(os) / np.sqrt(np.pi**2 + (np.log(os))**2)
 wn = 4/Ts/zeta
