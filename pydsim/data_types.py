@@ -59,11 +59,17 @@ class SimParams:
 
 class TwoPoleCircuit:
     
-    def __init__(self, R, L, C, f_pwm):
+    def __init__(self, R, L, C, f_pwm, Rl=0., Rc=0., Rds=0.):
 
         self.R = R
+
         self.L = L
+        self.Rl = Rl
+        
         self.C = C
+        self.Rc = Rc
+
+        self.Rds = Rds
         
         if f_pwm is not None:
             self.f_pwm = f_pwm
@@ -108,7 +114,7 @@ class SSModel:
         self.dt = dt
 
         if dt is not None:
-            Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((A, B, C, 0), dt, method='bilinear')
+            Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((A, B, C, 0), dt, method='zoh')
             self.Ad, self.Bd, self.Cd = Ad, Bd, Cd
 
         self.x_lp, self.u_lp = x_lp, u_lp
@@ -139,23 +145,41 @@ class BuckModel:
         self.dt = None
         
 
-    def _set_model(self, R, L, C, dt=None):
+    def _set_model(self, R, L, C, dt=None, Rl=0, Rc=0, Rds=0):
+
+        a11 = -(Rds + Rl) / L
+        a12 = -1 / L
+
+        a21 = (L - (Rds + Rl) * Rc * C) * R / ((R + Rc) * L * C)
+        a22 = -(R * Rc * C + L) / ((R + Rc) * L * C)
+
+        b11 = 1 / L
+        b21 = R * Rc / ((R + Rc) * L)
 
         # Continuous model
-        A = np.array([[0,      -1/L],
-                      [1/C,    -1/R/C]])
-        
-        B = np.array([[1/L],
-                      [0]])
-        
+        A = np.array([[a11, a12],
+                      [a21, a22]])
+
+        B = np.array([[b11],
+                      [b21]])
+
         C = np.array([0, 1])
+
+##        # Continuous model
+##        A = np.array([[0,      -1/L],
+##                      [1/C,    -1/R/C]])
+##        
+##        B = np.array([[1/L],
+##                      [0]])
+##        
+##        C = np.array([0, 1])
 
         self.A, self.B, self.C = A, B, C
 
         # Discrete model
         if dt is not None:
             self.dt = dt
-            Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((A, B, C, 0), dt, method='bilinear')
+            Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((A, B, C, 0), dt, method='zoh')
             self.Ad, self.Bd, self.Cd = Ad, Bd, Cd     
 
 

@@ -15,9 +15,9 @@ import pynoise
 
 class Buck:
 
-    def __init__(self, R, L, C, f_pwm=None):
+    def __init__(self, R, L, C, f_pwm=None, Rl=0., Rc=0., Rds=0.):
 
-        self.circuit = pyddtypes.TwoPoleCircuit(R, L, C, f_pwm)
+        self.circuit = pyddtypes.TwoPoleCircuit(R, L, C, f_pwm, Rl=Rl, Rc=Rc, Rds=Rds)
         self.model = pyddtypes.BuckModel()
         self.sim_params = pyddtypes.SimParams()
         self.signals = pyddtypes.Signals()
@@ -53,11 +53,12 @@ class Buck:
         return A @ x + B * u
 
         
-    def sim(self, v_ref, v_in=None, controller=pydctl.OL):
+    def sim(self, v_ref, v_in=None, controller=pydctl.OL, ideal_ctl_model=True):
 
         #  --- Set model and params for simulation ---
         # Circuit params
         R = self.circuit.R; L = self.circuit.L; C = self.circuit.C
+        Rl, Rc, Rds = self.circuit.Rl, self.circuit.Rc, self.circuit.Rds
         f_pwm = self.circuit.f_pwm
         t_pwm = 1 / f_pwm
 
@@ -67,8 +68,10 @@ class Buck:
         max_step = self.sim_params.max_step
 
         # Model
-        self.model._set_model(R, L, C, dt)
+        self.model._set_model(R, L, C, dt=t_pwm, Rl=Rl, Rc=Rc, Rds=Rds)
         Am = self.model.A; Bm = self.model.B; Cm = self.model.C
+        if ideal_ctl_model is True:
+            self.model._set_model(R, L, C, dt=t_pwm)
 
         # Run params
         n = round(t_sim / dt)

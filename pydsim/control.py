@@ -711,12 +711,14 @@ class DMPC_C:
             lm, n_iters = pydqp.hild(H_j, K_j, n_iter=n_iter, ret_n_iter=True)
             self.n_iters.append(n_iters)
             lm = lm.reshape(-1, 1)
-            if n_iters == n_iter:
-                du_opt = [-self.u_1+self.u_lim[0]]
-                #du_opt = [0]
-            else:
-                du_opt = -E_j_inv @ (F_j + M.T @ lm)
-                du_opt = du_opt.reshape(-1)
+            #if n_iters == n_iter:
+            #    du_opt = [-self.u_1+self.u_lim[0]]
+            #    #du_opt = [0]
+            #else:
+            #    du_opt = -E_j_inv @ (F_j + M.T @ lm)
+            #    du_opt = du_opt.reshape(-1)
+            du_opt = -E_j_inv @ (F_j + M.T @ lm)
+            du_opt = du_opt.reshape(-1)
 
         # print('\n-------------')
         # print('x:\n', x)
