@@ -49,6 +49,7 @@ class Buck:
         t_pwm = 1 / self.circuit.f_pwm
         
         self.model._set_model(R, L, C, dt=t_pwm, Rl=Rl, Rc=Rc, Rds=Rds)
+
         
     def set_controller(self, ctl, params):
 

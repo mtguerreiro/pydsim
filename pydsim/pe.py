@@ -14,9 +14,9 @@ import pynoise
 
 class Buck:
 
-    def __init__(self, R, L, C, f_pwm=None):
+    def __init__(self, R, L, C, f_pwm=None, Rl=0., Rc=0., Rds=0.):
 
-        self.circuit = pyddtypes.TwoPoleCircuit(R, L, C, f_pwm)
+        self.circuit = pyddtypes.TwoPoleCircuit(R, L, C, f_pwm, Rl=Rl, Rc=Rc, Rds=Rds)
         self.model = pyddtypes.BuckModel()
         self.sim_params = pyddtypes.SimParams()
         self.signals = pyddtypes.Signals()
@@ -126,10 +126,7 @@ class Buck:
 
             # Computes control law
             csig = ctl.meas(sig, ii, i)
-            if self.filter is None:
-                _u = ctl.control(csig)
-            else:
-                _u = ctl.control(csig)
+            _u = ctl.control(csig)
                 
             if _u < 0:
                 _u = 0
