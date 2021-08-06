@@ -165,15 +165,6 @@ class BuckModel:
 
         C = np.array([0, 1])
 
-##        # Continuous model
-##        A = np.array([[0,      -1/L],
-##                      [1/C,    -1/R/C]])
-##        
-##        B = np.array([[1/L],
-##                      [0]])
-##        
-##        C = np.array([0, 1])
-
         self.A, self.B, self.C = A, B, C
 
         # Discrete model
