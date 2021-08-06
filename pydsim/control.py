@@ -54,8 +54,9 @@ def set_controller_buck(buck, controller, params):
     elif type(ctl) is pydctl.DMPC_C:
         t_pwm = buck.circuit.t_pwm
         A, B, C = buck.model.A, buck.model.B, buck.model.C
-        v_in = buck.signals.v_in[0]
+
         n_c, n_p, r_w = params['n_c'], params['n_p'], params['r_w']
+
         if 'u_lim' in params:
             u_lim = params['u_lim']
         else:
@@ -80,6 +81,11 @@ def set_controller_buck(buck, controller, params):
             n_iter = params['n_iter']
         else:
             n_iter = 100
+
+        if 'v_in' in params:
+            v_in = params['v_in']
+        else:
+            v_in = buck.signals.v_in[0]
             
         ctl._set_params(A, B, C, t_pwm, v_in, n_p, n_c, r_w, solver=solver, n_iter=n_iter)
         ctl._set_constraints(u_lim, il_lim, n_ct)

@@ -43,6 +43,13 @@ class Buck:
         self.signals.x_ini[1] = vc
 
 
+    def set_model(self):
+        R = self.circuit.R; L = self.circuit.L; C = self.circuit.C
+        Rl, Rc, Rds = self.circuit.Rl, self.circuit.Rc, self.circuit.Rds
+        t_pwm = 1 / self.circuit.f_pwm
+        
+        self.model._set_model(R, L, C, dt=t_pwm, Rl=Rl, Rc=Rc, Rds=Rds)
+        
     def set_controller(self, ctl, params):
 
         self.ctl = pydctl.set_controller_buck(self, ctl, params)

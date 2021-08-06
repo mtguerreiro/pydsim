@@ -21,9 +21,6 @@ class Buck:
         self.sim_params = pyddtypes.SimParams()
         self.signals = pyddtypes.Signals()
 
-        # Set up filter
-        self.filter = None
-        #self.filter = self.init_filter()
 
         self.ctl = None
         self.ctlparams = None
@@ -45,31 +42,12 @@ class Buck:
         self.signals.x_ini[1] = vc
 
 
-##    def set_filter(self, fc):
-##
-##        # Sets the pass band
-##        self.__filter_wp = 2 * np.pi * fc
-##        self.__filter_Hwp = 0.707
-##
-##        # Sets the stop band with frequency one decade after fc and
-##        # attenuation of 40 dB (for a 2nd order filter)
-##        self.__filter_ws = 2 * np.pi * 10 * fc
-##        self.__filter_Hws = 0.01
-##
-##        self.filter = None
-##        if self.dt is not None:
-##            self.init_filter()
-
-
-##    def init_filter(self):
-##        wp = self.__filter_wp
-##        Hwp = self.__filter_Hwp
-##        ws = self.__filter_ws
-##        Hws = self.__filter_Hws
-##        
-##        self.filter = pysp.filters.butter(wp, Hwp, ws, Hws, T=self.dt, method='bilinear')
-##        self.filter_num = self.filter.tfz_sos[0][0]
-##        self.filter_den = self.filter.tfz_sos[1][0]
+    def set_model(self):
+        R = self.circuit.R; L = self.circuit.L; C = self.circuit.C
+        Rl, Rc, Rds = self.circuit.Rl, self.circuit.Rc, self.circuit.Rds
+        t_pwm = 1 / self.circuit.f_pwm
+        
+        self.model._set_model(R, L, C, dt=t_pwm, Rl=Rl, Rc=Rc, Rds=Rds)
 
 
     def set_controller(self, ctl, params):
