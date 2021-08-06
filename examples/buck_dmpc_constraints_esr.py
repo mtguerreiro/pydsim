@@ -41,15 +41,13 @@ v_in_p[int(n / 2):] = v_in + v_in_step
 v_ref_p = v_ref * np.ones(n)
 
 dmpc_params = {'n_c': 2, 'n_p': 20, 'r_w': 20, 'u_lim': [0, 1], 'il_lim': [-8, 8], 'n_ct':1, 'n_iter':3, 'solver':'hild'}
-buck.set_ctlparams(dmpc_params)
-buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.DMPC_C, ideal_ctl_model=True)
+buck.sim(v_ref=v_ref_p, v_in=v_in_p, ctl=pyd.control.DMPC_C, ctl_params=dmpc_params)
 t_dmpc_q = buck.signals.t
 x_dmpc_q = buck.signals.x
 u_dmpc_q = buck.signals.d
 
 dmpc_params = {'n_c': 2, 'n_p': 20, 'r_w': 20, 'u_lim': [0, 1], 'il_lim': [-8, 8], 'n_ct':1, 'n_iter':3, 'solver':'hild'}
-buck.set_ctlparams(dmpc_params)
-buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.DMPC_C, ideal_ctl_model=False)
+buck.sim(v_ref=v_ref_p, v_in=v_in_p, ctl=pyd.control.DMPC_C, ctl_params=dmpc_params)
 t_dmpc_h = buck.signals.t
 x_dmpc_h = buck.signals.x
 u_dmpc_h = buck.signals.d

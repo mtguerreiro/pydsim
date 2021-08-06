@@ -33,14 +33,14 @@ n = round(t_sim * f_pwm)
 v_in_p = v_in * np.ones(n)
 v_in_p[int(n / 2):] = v_in + v_in_step
 
-buck.sim(v_ref=v_ref, v_in=v_in_p, controller=pyd.control.OL)
+olparams= {'u':v_ref / v_in}
+buck.sim(v_ref=v_ref, v_in=v_in_p, ctl=pyd.control.OL, ctl_params=olparams)
 t_ol = buck.signals.t
 x_ol = buck.signals.x
 u_ol = buck.signals.d
 
 ctlparams = {'ki': 30, 'kp': 0}
-buck.set_ctlparams(ctlparams)
-buck.sim(v_ref=v_ref, v_in=v_in_p, controller=pyd.control.PI)
+buck.sim(v_ref=v_ref, v_in=v_in_p, ctl=pyd.control.PI, ctl_params=ctlparams)
 t_pi = buck.signals.t
 x_pi = buck.signals.x
 u_pi = buck.signals.d

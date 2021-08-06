@@ -43,16 +43,14 @@ p2 = np.conj(p1)
 p3 = 10 * p1.real
 
 sfb_params = {'poles': [p1, p2]}
-buck.set_ctlparams(sfb_params)
-buck.sim(v_ref=v_ref, v_in=v_in_p, controller=pyd.control.SFB)
+buck.sim(v_ref=v_ref, v_in=v_in_p, ctl=pyd.control.SFB, ctl_params=sfb_params)
 
 t_sfb = buck.signals.t
 x_sfb = buck.signals.x
 u_sfb = buck.signals.d
 
 sfbi_params = {'poles': [p1, p2, p3]}
-buck.set_ctlparams(sfbi_params)
-buck.sim(v_ref=v_ref, v_in=v_in_p, controller=pyd.control.SFB_I)
+buck.sim(v_ref=v_ref, v_in=v_in_p, ctl=pyd.control.SFB_I, ctl_params=sfbi_params)
 t_sfbi = buck.signals.t
 x_sfbi = buck.signals.x
 u_sfbi = buck.signals.d

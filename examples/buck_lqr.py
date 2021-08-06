@@ -39,8 +39,7 @@ v_in_p = v_in * np.ones(n)
 #v_in_p[n>>1:] = v_in + v_in_step
 
 ctlparams = {'Q': Qw, 'R': Rw, 'H': Hw, 'N': N}
-buck.set_ctlparams(ctlparams)
-buck.sim(v_ref=v_ref, v_in=v_in_p, controller=pyd.control.LQR)
+buck.sim(v_ref=v_ref, v_in=v_in_p, ctl=pyd.control.LQR, ctl_params=ctlparams)
 
 t_sfb = buck.signals.t
 x_sfb = buck.signals.x

@@ -64,8 +64,7 @@ p3_o = 10 * p1_o.real
 obs_params = {'b1': 3e5, 'b2': 1e12, 'b3': 1e8}
 sfb_params = {'poles': [p1, p2, p3], 'obs': pydobs.ESO,'obs_params': obs_params}
 
-buck.set_ctlparams(sfb_params)
-buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pydctl.SFB_I)
+buck.sim(v_ref=v_ref_p, v_in=v_in_p, ctl=pydctl.SFB_I, ctl_params=sfb_params)
 
 t_sfb = buck.signals.t
 x_sfb = buck.signals.x

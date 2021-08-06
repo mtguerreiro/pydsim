@@ -43,15 +43,13 @@ v_ref_p = v_ref * np.ones(n)
 ##v_ref_p = 5 + np.sin(2 * np.pi * 500 * t_pwm * np.arange(n))
 
 dmpc_params = {'n_c': 10, 'n_p': 25, 'r_w': 0.05, 'u_lim': [0, 1], 'il_lim': [-15, 15], 'n_ct':1, 'solver':'quadprog'}
-buck.set_ctlparams(dmpc_params)
-buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.DMPC_C)
+buck.sim(v_ref=v_ref_p, v_in=v_in_p, ctl=pyd.control.DMPC_C, ctl_params=dmpc_params)
 t_dmpc_q = buck.signals.t
 x_dmpc_q = buck.signals.x
 u_dmpc_q = buck.signals.d
 
 dmpc_params = {'n_c': 5, 'n_p': 50, 'r_w': 20, 'u_lim': [0, 1], 'il_lim': [-15, 15], 'n_ct':1, 'n_iter':100, 'solver':'hild'}
-buck.set_ctlparams(dmpc_params)
-buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.DMPC_C)
+buck.sim(v_ref=v_ref_p, v_in=v_in_p, ctl=pyd.control.DMPC_C, ctl_params=dmpc_params)
 t_dmpc_h = buck.signals.t
 x_dmpc_h = buck.signals.x
 u_dmpc_h = buck.signals.d

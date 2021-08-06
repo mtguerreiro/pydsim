@@ -28,14 +28,14 @@ buck = pyd.pe.Buck(R, L, C)
 buck.set_f_pwm(f_pwm)
 buck.set_sim_params(dt, t_sim)
 
-buck.sim(v_ref=v_ref, v_in=v_in, controller=pyd.control.OL)
+olparams = {'u':v_ref / v_in}
+buck.sim(v_ref=v_ref, v_in=v_in, ctl=pyd.control.OL, ctl_params=olparams)
 t_ol = buck.signals.t
 x_ol = buck.signals.x
 u_ol = buck.signals.d
 
 ctlparams = {'ki': 30, 'kp': 0}
-buck.set_ctlparams(ctlparams)
-buck.sim(v_ref=v_ref, v_in=v_in, controller=pyd.control.PI)
+buck.sim(v_ref=v_ref, v_in=v_in, ctl=pyd.control.PI, ctl_params=ctlparams)
 t_pi = buck.signals.t
 x_pi = buck.signals.x
 u_pi = buck.signals.d

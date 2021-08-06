@@ -43,14 +43,12 @@ v_ref_p = v_ref * np.ones(n)
 ##v_ref_p = 5 + np.sin(2 * np.pi * 2000 * t_pwm * np.arange(n))
 
 pid_params = {'ki': 10000, 'kd': 0.0001, 'kp': 0.75, 'N': 50000}
-buck.set_ctlparams(pid_params)
-buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.PID)
+buck.sim(v_ref=v_ref_p, v_in=v_in_p, ctl=pyd.control.PID, ctl_params=pid_params)
 t_pi = buck.signals.t
 x_pi = buck.signals.x
 
 mpc_params = {'alpha': 5, 'beta': 0, 'n_step': 3, 'il_max': 5, 'ref': v_ref_p}
-buck.set_ctlparams(mpc_params)
-buck.sim(v_ref=v_ref_p, v_in=v_in_p, controller=pyd.control.SMPC)
+buck.sim(v_ref=v_ref_p, v_in=v_in_p, ctl=pyd.control.SMPC, ctl_params=mpc_params)
 t_mp = buck.signals.t
 x_mp = buck.signals.x
 

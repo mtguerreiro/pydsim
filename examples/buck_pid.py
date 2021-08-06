@@ -40,8 +40,7 @@ v_in_p = v_in * np.ones(n)
 ##x_ol = buck.x
 
 ctlparams = {'ki': 10000, 'kd': 0.0001, 'kp': 0.75, 'N': 50000}
-buck.set_ctlparams(ctlparams)
-buck.sim(v_ref=v_ref, v_in=v_in_p, controller=pyd.control.PID)
+buck.sim(v_ref=v_ref, v_in=v_in_p, ctl=pyd.control.PID, ctl_params=ctlparams)
 t_pi = buck.signals.t
 x_pi = buck.signals.x
 u_pi = buck.signals.d

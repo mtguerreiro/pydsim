@@ -35,8 +35,7 @@ buck.set_f_pwm(f_pwm)
 buck.set_sim_params(dt, t_sim, max_step=max_step)
 
 ctlparams = {'ki': 10000, 'kd': 0.0001, 'kp': 0.75, 'N': 50000}
-buck.set_ctlparams(ctlparams)
-buck.sim(v_ref=v_ref, v_in=v_in_p, controller=pyd.control.PID)
+buck.sim(v_ref=v_ref, v_in=v_in_p, ctl=pyd.control.PID, ctl_params=ctlparams)
 t_ode = buck.signals.t
 x_ode = buck.signals.x
 u_ode = buck.signals.d
@@ -46,9 +45,7 @@ buck = pyd.pe.Buck(R, L, C)
 buck.set_f_pwm(f_pwm)
 buck.set_sim_params(dt, t_sim)
 
-ctlparams = {'ki': 10000, 'kd': 0.0001, 'kp': 0.75, 'N': 50000}
-buck.set_ctlparams(ctlparams)
-buck.sim(v_ref=v_ref, v_in=v_in_p, controller=pyd.control.PID)
+buck.sim(v_ref=v_ref, v_in=v_in_p, ctl=pyd.control.PID, ctl_params=ctlparams)
 t_dif = buck.signals.t
 x_dif = buck.signals.x
 u_dif = buck.signals.d
