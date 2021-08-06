@@ -108,9 +108,7 @@ def set_controller_buck(buck, controller, params):
         ctl._set_params(A, B, C, v_in, t_pwm, Q, R, H, N)
         
     else:
-        v_ref = buck.signals.v_ref[0]
-        v_in = buck.signals.v_in[0]
-        d = v_ref / v_in
+        d = params['u']
         ctl._set_params(d)
 
     return ctl

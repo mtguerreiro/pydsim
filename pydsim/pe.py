@@ -72,12 +72,13 @@ class Buck:
 ##        self.filter_den = self.filter.tfz_sos[1][0]
 
 
-    def set_ctlparams(self, params):
+    def set_controller(self, ctl, params):
 
+        self.ctl = pydctl.set_controller_buck(self, ctl, params)
         self.ctlparams = params
 
     
-    def sim(self, v_ref, v_in=None, controller=pydctl.OL):
+    def sim(self, v_ref, v_in=None, ctl=None, ctl_params=None):
 
         #  --- Set model and params for simulation ---
         # Circuit params
@@ -118,8 +119,14 @@ class Buck:
         sig._x[0, :] = sig.x_ini[:]
 
         # --- Set control ---
-        ctl = pydctl.set_controller_buck(self, controller, self.ctlparams)
-        self.ctl = ctl
+        if ctl is None:
+            if self.ctl is None:
+                raise ValueError('Controller not defined.')
+            ctl = self.ctl
+        else:
+            ctl = pydctl.set_controller_buck(self, ctl, ctl_params)
+            self.ctl = ctl
+            self.ctlparams = ctl_params
 
         # --- Sim ---
         # Triangle reference for PWM

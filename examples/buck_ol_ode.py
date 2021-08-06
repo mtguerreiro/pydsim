@@ -33,6 +33,7 @@ buck.set_f_pwm(f_pwm)
 buck.set_sim_params(dt, t_sim, max_step=max_step)
 buck.set_initial_conditions(0, 0)
 
+buck.set_controller(pyd.control.OL, {'u':0.2})
 buck.sim(v_ref=v_ref, v_in=v_in)
 t = buck.signals.t
 x = buck.signals.x
@@ -42,6 +43,7 @@ buck_esr.set_f_pwm(f_pwm)
 buck_esr.set_sim_params(dt, t_sim, max_step=max_step)
 buck_esr.set_initial_conditions(0, 0)
 
+buck_esr.set_controller(pyd.control.OL, {'u':0.2})
 buck_esr.sim(v_ref=v_ref, v_in=v_in)
 t_esr = buck_esr.signals.t
 x_esr = buck_esr.signals.x

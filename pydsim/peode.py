@@ -43,8 +43,9 @@ class Buck:
         self.signals.x_ini[1] = vc
 
 
-    def set_ctlparams(self, params):
+    def set_controller(self, ctl, params):
 
+        self.ctl = pydctl.set_controller_buck(self, ctl, params)
         self.ctlparams = params
 
     
@@ -53,7 +54,7 @@ class Buck:
         return A @ x + B * u
 
         
-    def sim(self, v_ref, v_in=None, controller=pydctl.OL, ideal_ctl_model=True):
+    def sim(self, v_ref, v_in=None, ctl=None, ctl_params=None):
 
         #  --- Set model and params for simulation ---
         # Circuit params
@@ -70,8 +71,6 @@ class Buck:
         # Model
         self.model._set_model(R, L, C, dt=t_pwm, Rl=Rl, Rc=Rc, Rds=Rds)
         Am = self.model.A; Bm = self.model.B; Cm = self.model.C
-        if ideal_ctl_model is True:
-            self.model._set_model(R, L, C, dt=t_pwm)
 
         # Run params
         n = round(t_sim / dt)
@@ -101,9 +100,15 @@ class Buck:
         t = dt * np.arange(n + 1)
         
         # --- Set control ---
-        ctl = pydctl.set_controller_buck(self, controller, self.ctlparams)
-        self.ctl = ctl
-
+        if ctl is None:
+            if self.ctl is None:
+                raise ValueError('Controller not defined.')
+            ctl = self.ctl
+        else:
+            ctl = pydctl.set_controller_buck(self, ctl, ctl_params)
+            self.ctl = ctl
+            self.ctlparams = ctl_params
+            
         # --- Sim ---
         # Triangle reference for PWM
         u_t = np.arange(0, 1, 1 / n_pwm)

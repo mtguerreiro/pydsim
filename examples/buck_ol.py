@@ -28,6 +28,7 @@ buck.set_f_pwm(f_pwm)
 buck.set_sim_params(dt, t_sim)
 buck.set_initial_conditions(0.5, 6)
 
+buck.set_controller(pyd.control.OL, {'u':0.2})
 buck.sim(v_ref=v_ref, v_in=v_in)
 t = buck.signals.t
 x = buck.signals.x
