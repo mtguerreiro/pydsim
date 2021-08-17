@@ -17,8 +17,10 @@ def set_controller_buck(buck, controller, params):
     
     if type(ctl) is pydctl.PI:
         t_pwm = buck.circuit.t_pwm
+        print('f_pwm: {:.2f} kHz'.format(1/t_pwm/1e3))
         kp, ki = params['kp'], params['ki']
         ctl._set_params(kp, ki, t_pwm)
+        ctl.u_1 = 1/9
         
     elif type(ctl) is pydctl.PID:
         t_pwm = buck.circuit.t_pwm
@@ -93,7 +95,10 @@ def set_controller_buck(buck, controller, params):
     elif type(ctl) is pydctl.SFB or type(ctl) is pydctl.SFB_I:
         t_pwm = buck.circuit.t_pwm
         A, B, C = buck.model.A, buck.model.B, buck.model.C
-        v_in = buck.signals.v_in[0]
+        if 'v_in' in params:
+            v_in = params['v_in']
+        else:
+            v_in = buck.signals.v_in[0]
         poles = params['poles']
         if 'obs' in params:
             obs = params['obs']
