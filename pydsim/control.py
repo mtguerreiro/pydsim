@@ -328,7 +328,7 @@ class SMPC:
         self.Am, self.Bm, self.Cm = A, B * v_in, C
 
         self.dt = dt
-        Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((A, B * v_in, C, 0), dt, method='bilinear')
+        Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((A, B * v_in, C, 0), dt, method='zoh')
         self.Ad, self.Bd, self.Cd = Ad, Bd, Cd
 
         self.n_p = n_p
@@ -449,7 +449,7 @@ class DMPC:
         self.Am, self.Bm, self.Cm = A, B * v_in, C
 
         self.dt = dt
-        Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((A, B * v_in, C, 0), dt, method='bilinear')
+        Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((A, B * v_in, C, 0), dt, method='zoh')
         self.Ad, self.Bd, self.Cd = Ad, Bd, Cd
 
         self.n_p, self.n_c, self.r_w = n_p, n_c, r_w
@@ -586,7 +586,7 @@ class DMPC_C:
 
         # Discrete model
         self.dt = dt
-        Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((A, B * v_in, C, 0), dt, method='bilinear')
+        Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((A, B * v_in, C, 0), dt, method='zoh')
         self.Ad, self.Bd, self.Cd = Ad, Bd, Cd
         
         # Augmented model for DMPC
@@ -735,7 +735,7 @@ class DMPC_C:
         # print('x_1:\n', self.x_1)
         # print('ua_1:\n', self.u_1)
         # print('\nlambda:\n', lm)
-        # print('\nn_iter:\n', n_iter)
+        # print('\nn_iter:\n', n_iters)
         # print('\ndu_opt:\n', du_opt)
         # print('-------------\n')
         
@@ -1094,7 +1094,7 @@ class LQR:
         self.Aa, self.Ba, self.Ca = Aa, Ba, Ca
 
         # Discretization of the augmented model
-        Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((Aa, Ba, Ca, 0), dt, method='bilinear')
+        Ad, Bd, Cd, _, _ = scipy.signal.cont2discrete((Aa, Ba, Ca, 0), dt, method='zoh')
         self.Ad, self.Bd, self.Cd = Ad, Bd, Cd
 
         F = -octl.dynprg_gains(Ad, Bd, Q, R, H, N)
