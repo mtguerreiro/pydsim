@@ -17,7 +17,8 @@ def buck_dmpc_export(buck, file=None):
 
     Fxp = buck.ctl.CI @ buck.ctl.F_x
 
-    Hj = buck.ctl.H_j
+    Hj = np.zeros(buck.ctl.H_j.shape, dtype=buck.ctl.H_j.dtype)
+    Hj[:] = buck.ctl.H_j[:]
     Hj[np.eye(Hj.shape[0],dtype=bool)] = -1 / Hj[np.eye(Hj.shape[0],dtype=bool)]
 
     DU1 = (-buck.ctl.E_j_inv)[0, :]
