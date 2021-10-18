@@ -5,23 +5,23 @@ plt.ion()
 
 # --- Input ---
 # Circuit components
-R = 2.2
-L = 4.7e-6
+R = 1.1
+L = 47e-6
 C = 560e-6
 
 Rl = 15e-3
-Rds = 11e-3
-Rc = 30e-3
+Rds = 15e-3
+Rc = 60e-3
 
 # Input and reference voltage
-v_in = 10
-v_ref = 6.6
+v_in = 16
+v_ref = 8
 
 # Sim time
-t_sim = 1e-3
+t_sim = 10e-3
 
 # PWM frequency
-f_pwm = 200e3
+f_pwm = 50e3
 
 # Step size for simulation
 max_step = 1e-6
@@ -33,7 +33,7 @@ buck.set_f_pwm(f_pwm)
 buck.set_sim_params(dt, t_sim, max_step=max_step)
 buck.set_initial_conditions(0, 0)
 
-buck.set_controller(pyd.control.OL, {'u':0.2})
+buck.set_controller(pyd.control.OL, {'u':0.5})
 buck.sim(v_ref=v_ref, v_in=v_in)
 t = buck.signals.t
 x = buck.signals.x
@@ -43,7 +43,7 @@ buck_esr.set_f_pwm(f_pwm)
 buck_esr.set_sim_params(dt, t_sim, max_step=max_step)
 buck_esr.set_initial_conditions(0, 0)
 
-buck_esr.set_controller(pyd.control.OL, {'u':0.2})
+buck_esr.set_controller(pyd.control.OL, {'u':0.5})
 buck_esr.sim(v_ref=v_ref, v_in=v_in)
 t_esr = buck_esr.signals.t
 x_esr = buck_esr.signals.x

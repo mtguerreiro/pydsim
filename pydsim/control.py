@@ -45,12 +45,16 @@ def set_controller_buck(buck, controller, params):
     elif type(ctl) is pydctl.DMPC:
         t_pwm = buck.circuit.t_pwm
         A, B, C = buck.model.A, buck.model.B, buck.model.C
-        v_in = buck.signals.v_in[0]
         n_c, n_p, r_w = params['n_c'], params['n_p'], params['r_w']
         if 'ref' in params:
             ref = params['ref']
         else:
             ref = None
+            
+        if 'v_in' in params:
+            v_in = params['v_in']
+        else:
+            v_in = buck.signals.v_in[0]
         ctl._set_params(A, B, C, t_pwm, v_in, n_p, n_c, r_w, ref)
 
     elif type(ctl) is pydctl.DMPC_C:
@@ -462,6 +466,7 @@ class DMPC:
             Ky, Kmpc = dmpc_sys.opt_cl_gains()
             self.K_x = Kmpc[0, :-1]
             self.K_y = Kmpc[0, -1]
+            self.K_mpc = Kmpc
         else:
             n_ref = ref.shape[0]
             _ref = np.zeros(n_ref + n_p)
@@ -476,10 +481,14 @@ class DMPC:
             Ky, Kmpc = dmpc_sys.opt_cl_gains()
             self.K_x = Kmpc[0, :-1]
             self.K_y = Kmpc[0, -1]
+            self.K_mpc = Kmpc
 
         self.x_1 = np.array([0.0, 0.0])
         self.u_1 = 0.0
-        
+
+        # Augmented model for DMPC
+        Aa, Ba, Ca = pyddmpc.aug(Ad, Bd, Cd)
+        self.Aa, self.Ba, self.Ca = Aa, Ba, Ca
 
     def meas(self, signals, i, j):
 
@@ -702,6 +711,8 @@ class DMPC_C:
         y[n_2:n_3, :] = -il_min + CI @ F_x @ xa
         y[n_3:, :] = il_max - CI @ F_x @ xa
 
+        self.xa = xa
+
         if self.solver == 'quadprog':
             du_opt = qps.solve_qp(E_j, F_j.reshape(-1), M, y.reshape(-1))
             if du_opt is None:
@@ -729,6 +740,7 @@ class DMPC_C:
             du_opt = -E_j_inv @ (F_j + M.T @ lm)
             du_opt = du_opt.reshape(-1)
 
+        self.F_j = F_j
         # print('\n-------------')
         # print('x:\n', x)
         # print('ref:\n', ref)

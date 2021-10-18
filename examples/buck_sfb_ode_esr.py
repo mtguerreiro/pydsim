@@ -5,8 +5,8 @@ plt.ion()
 
 # --- Input ---
 # Circuit components
-R = 1.1
-L = 10e-6
+R = 2.2
+L = 47e-6
 C = 560e-6
 
 # Parasitics
@@ -15,9 +15,9 @@ Rl = 15e-3
 Rc = 60e-3
 
 # Input and reference voltage
-v_in = 10
+v_in = 16
 v_in_step = -3
-v_ref = 5
+v_ref = 8
 
 # Sim time
 t_sim = 5e-3
@@ -30,8 +30,8 @@ max_step = 1e-6
 dt = 1 / f_pwm / 500
 
 # Specs for state feedback
-Ts = 0.5e-3
-os = 5/100
+Ts = 1.25e-3
+os = 2/100
 
 # --- Simulation ---
 buck = pyd.peode.Buck(R, L, C, Rds=Rds, Rl=Rl, Rc=Rc)
