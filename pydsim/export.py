@@ -17,6 +17,10 @@ def buck_dmpc_export(buck, file=None):
 
     Fxp = buck.ctl.CI @ buck.ctl.F_x
 
+    Ej = buck.ctl.E_j
+
+    M = buck.ctl.M
+
     Hj = np.zeros(buck.ctl.H_j.shape, dtype=buck.ctl.H_j.dtype)
     Hj[:] = buck.ctl.H_j[:]
     Hj[np.eye(Hj.shape[0],dtype=bool)] = -1 / Hj[np.eye(Hj.shape[0],dtype=bool)]
@@ -62,7 +66,12 @@ def buck_dmpc_export(buck, file=None):
                   '#define DMPC_BUCK_CONFIG_U_MAX\t\t{:}\n'.format(u_lim[1])
     text = text + constraints
 
-    matrices = '\n /* Matrices */\n'
+    matrices = '\n /* Matrices for QP solvers */\n'
+    ej = np_array_to_c(Ej, 'float Ej') + '\n\n'
+    m = np_array_to_c(M, 'float M') + '\n\n'
+    text = text + matrices + ej + m
+    
+    matrices = '\n /* Matrices for Hildreth\'s QP procedure */\n'
     fj1 = np_array_to_c(Fj1, 'float Fj_1') + '\n\n'
     fj2 = np_array_to_c(Fj2, 'float Fj_2') + '\n\n'
     fxp = np_array_to_c(Fxp, 'float Fx') + '\n\n'
