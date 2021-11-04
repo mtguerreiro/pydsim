@@ -66,10 +66,25 @@ def buck_dmpc_export(buck, file=None):
                   '#define DMPC_BUCK_CONFIG_U_MAX\t\t{:}\n'.format(u_lim[1])
     text = text + constraints
 
-    matrices = '\n /* Matrices for QP solvers */\n'
+    matrices = '\n/*\n * Matrices for QP solvers \n'\
+               ' *\n'\
+               ' * The matrices were generated considering the following problem:\n'\
+               ' *\n'\
+               ' * min (1/2) * DU\' * Ej * DU + DU\' * Fj\n'\
+               ' * DU\n'\
+               ' *\n'\
+               ' * s.t. M * DU <= gam\n'\
+               ' *\n'\
+               ' * The (1/2) term in from of DU\' * Ej * DU needs to be considered in the QP\n'\
+               ' * solver selected, or the solution will appear to be inconsistent.\n'\
+               ' * Note that the Fj and gam matrices are usually updated online, while Ej\n'\
+               ' * and M are static.\n'\
+               ' */\n'
     ej = np_array_to_c(Ej, 'float Ej') + '\n\n'
+    fj = 'float Fj[{:}];\n\n'.format(n_c)
     m = np_array_to_c(M, 'float M') + '\n\n'
-    text = text + matrices + ej + m
+    gam = 'float gam[{:}];\n'.format(n_lambda)
+    text = text + matrices + ej + fj + m + gam
     
     matrices = '\n /* Matrices for Hildreth\'s QP procedure */\n'
     fj1 = np_array_to_c(Fj1, 'float Fj_1') + '\n\n'
