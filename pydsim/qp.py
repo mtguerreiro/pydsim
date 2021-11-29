@@ -1,11 +1,11 @@
 import numpy as np
 
-def hild(H, K, n_iter=100, ret_n_iter=False):
+def hild(H, K, n_iter=100, lm=None, ret_n_iter=False):
 
     h_d = -1 / H.diagonal()
-    h = H[~np.eye(H.shape[0],dtype=bool)].reshape(H.shape[0],-1)
 
-    lm = np.zeros(H.shape[0])
+    if lm is None:
+        lm = np.zeros(H.shape[0])
     lm_p = np.zeros(H.shape[0])
     w = np.zeros(H.shape[0])
     
@@ -15,7 +15,7 @@ def hild(H, K, n_iter=100, ret_n_iter=False):
         lm_p[:] = lm[:]
         for i in range(0, w.shape[0]):
             lm[i] = 0
-            w[i] = h_d[i] * (K[i, 0] + h[i,:i] @ lm[:i] +  h[i,i:] @ lm[i+1:])
+            w[i] = h_d[i] * (K[i, 0] + H[i,:] @ lm[:])
             if w[i] > 0: lm[i] = w[i]
         k = k + 1
         if np.allclose(lm_p, lm) == True:
